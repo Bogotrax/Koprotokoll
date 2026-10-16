@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" role="img" aria-labelledby="t d">
+  <title id="t">Zielbild: Notetaker als lokaler Meeting-Server mit Begleit-App, Kalendern und E-Mail</title>
+  <desc id="d">Links die Geräte mit Begleit-App (aus Dictate) und Browser, in der Mitte der Notetaker-Server mit Parakeet, rechts die Anschlüsse an Kalender, E-Mail und Meeting-Plattformen.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6c3ce1"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #d9d3f2; stroke-width: 1.5; }
+      .new { fill: #fff7e6; stroke: #f59f00; stroke-width: 1.5; }
+      .core { fill: #efe9fd; stroke: #b9a3ff; stroke-width: 1.5; }
+      .h { font: 700 15px Inter, 'Segoe UI', system-ui, sans-serif; fill: #1d1d2b; }
+      .s { font: 400 12.5px Inter, 'Segoe UI', system-ui, sans-serif; fill: #5b5b70; }
+      .lab { font: 700 12px Inter, 'Segoe UI', system-ui, sans-serif; fill: #6c3ce1; letter-spacing: .08em; }
+      .ln { stroke: #6c3ce1; stroke-width: 2; fill: none; marker-end: url(#a); }
+      .ln2 { stroke: #6c3ce1; stroke-width: 2; fill: none; marker-end: url(#a); marker-start: url(#a); }
+      .leg { font: 400 12px Inter, 'Segoe UI', system-ui, sans-serif; fill: #5b5b70; }
+    </style>
+  </defs>
+  <rect width="1200" height="640" rx="20" fill="#f7f7fb"/>
+
+  <!-- Geräte -->
+  <text x="36" y="48" class="lab">DEINE GERÄTE</text>
+  <rect x="36" y="64" width="300" height="150" rx="14" class="new"/>
+  <text x="56" y="94" class="h">Begleit-App (aus Dictate)</text>
+  <text x="56" y="118" class="s">• Diktieren per Hotkey (wie heute)</text>
+  <text x="56" y="138" class="s">• Meeting erkannt → „Aufnehmen?“</text>
+  <text x="56" y="158" class="s">• Mikrofon + Systemton (Teams-, Zoom-App,</text>
+  <text x="56" y="176" class="s">  Telefon-Softphone) aufnehmen</text>
+  <text x="56" y="196" class="s">• lädt Aufnahme hoch, zeigt Live-Text</text>
+
+  <rect x="36" y="232" width="300" height="84" rx="14" class="box"/>
+  <text x="56" y="262" class="h">Browser</text>
+  <text x="56" y="284" class="s">Weboberfläche, Aufnahme im Tab</text>
+
+  <rect x="36" y="334" width="300" height="84" rx="14" class="box"/>
+  <text x="56" y="364" class="h">Tools &amp; KI-Assistenten</text>
+  <text x="56" y="386" class="s">n8n, Skripte, Claude/Cursor über MCP</text>
+
+  <!-- Server -->
+  <rect x="396" y="40" width="400" height="530" rx="18" fill="#ffffff" stroke="#6c3ce1" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="420" y="72" class="lab">NOTETAKER-SERVER · LOKAL (PC/BÜRO)</text>
+  <rect x="420" y="88" width="352" height="64" rx="12" class="core"/>
+  <text x="440" y="116" class="h">API + Weboberfläche</text>
+  <text x="440" y="138" class="s">REST, Webhooks, MCP, /v1/audio/transcriptions</text>
+  <rect x="420" y="166" width="352" height="64" rx="12" class="core"/>
+  <text x="440" y="194" class="h">Spracherkennung (gemeinsam mit Dictate)</text>
+  <text x="440" y="216" class="s">Parakeet primeline (Deutsch) · v3 · live</text>
+  <rect x="420" y="244" width="352" height="64" rx="12" class="core"/>
+  <text x="440" y="272" class="h">Sprecher · Zusammenfassung · Aufgaben</text>
+  <text x="440" y="294" class="s">sherpa-onnx, lokales LLM (Ollama)</text>
+  <rect x="420" y="322" width="352" height="64" rx="12" class="new"/>
+  <text x="440" y="350" class="h">Kalender-Planer (alle Quellen)</text>
+  <text x="440" y="372" class="s">erkennt Meetings, plant Bot oder Begleit-App</text>
+  <rect x="420" y="400" width="352" height="64" rx="12" class="new"/>
+  <text x="440" y="428" class="h">Versand &amp; Aufgaben</text>
+  <text x="440" y="450" class="s">Recap per Mail/Entwurf, Aufgaben in Kalender/To-do</text>
+  <rect x="420" y="478" width="352" height="64" rx="12" class="core"/>
+  <text x="440" y="506" class="h">Meeting-Bot</text>
+  <text x="440" y="528" class="s">Meet ✔ · Teams, Zoom, Jitsi, BBB neu</text>
+
+  <path d="M340 108 H 416" class="ln2"/>
+  <path d="M336 274 H 378 V 136 H 416" class="ln"/>
+  <path d="M336 376 H 378 V 274" style="stroke:#6c3ce1;stroke-width:2;fill:none"/>
+
+  <!-- Anschlüsse -->
+  <text x="856" y="48" class="lab">ANSCHLÜSSE</text>
+  <rect x="856" y="64" width="308" height="132" rx="14" class="new"/>
+  <text x="876" y="94" class="h">Kalender</text>
+  <text x="876" y="118" class="s">Outlook (Desktop lokal oder Microsoft 365)</text>
+  <text x="876" y="138" class="s">CalDAV: Nextcloud, iCloud, Posteo, mailbox.org</text>
+  <text x="876" y="158" class="s">ICS-Abo-Link (jeder Kalender, nur lesen)</text>
+  <text x="876" y="178" class="s">Google Kalender ✔</text>
+
+  <rect x="856" y="212" width="308" height="132" rx="14" class="new"/>
+  <text x="876" y="242" class="h">E-Mail-Programme</text>
+  <text x="876" y="266" class="s">SMTP (jedes Postfach)</text>
+  <text x="876" y="286" class="s">Entwurf in Outlook oder Thunderbird</text>
+  <text x="876" y="306" class="s">Microsoft 365 (Graph), Gmail ✔</text>
+  <text x="876" y="326" class="s">.eml-Datei zum Öffnen</text>
+
+  <rect x="856" y="360" width="308" height="112" rx="14" class="box"/>
+  <text x="876" y="390" class="h">Meeting-Plattformen</text>
+  <text x="876" y="414" class="s">Google Meet ✔ · Microsoft Teams</text>
+  <text x="876" y="434" class="s">Zoom · Jitsi · BigBlueButton</text>
+  <text x="876" y="454" class="s">Webex (später)</text>
+
+  <path d="M772 354 C 820 354, 812 130, 852 130" class="ln2"/>
+  <path d="M772 432 C 820 432, 812 278, 852 278" class="ln"/>
+  <path d="M772 510 C 820 510, 812 416, 852 416" class="ln"/>
+
+  <!-- Legende -->
+  <rect x="36" y="596" width="16" height="16" rx="4" class="new"/>
+  <text x="60" y="609" class="leg">neu laut Plan</text>
+  <rect x="170" y="596" width="16" height="16" rx="4" class="core"/>
+  <text x="194" y="609" class="leg">vorhanden (wird erweitert)</text>
+  <text x="400" y="609" class="leg">✔ = funktioniert heute</text>
+</svg>

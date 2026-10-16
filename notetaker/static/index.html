@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notetaker</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Ccircle cx=%228%22 cy=%228%22 r=%226%22 fill=%22%236c3ce1%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">●</span> Notetaker
+      <span id="engine" class="engine" title="Lokale Engines"></span>
+    </div>
+    <div class="actions">
+      <button id="btn-record" class="primary">● Aufnehmen</button>
+      <button id="btn-upload">⇪ Hochladen</button>
+    </div>
+    <form id="bot-quick" class="row" title="Bot als Teilnehmer in ein Online-Meeting schicken">
+      <input id="bot-quick-url" placeholder="Meet-Link einfügen → Bot schicken" autocomplete="off">
+      <button class="primary" aria-label="Bot schicken">➜</button>
+    </form>
+    <input id="global-search" type="search" placeholder="Alle Meetings durchsuchen …" autocomplete="off">
+    <div id="search-results" hidden></div>
+    <div id="bot-live"></div>
+    <nav id="meeting-list" aria-label="Meetings"></nav>
+    <button id="btn-integrations" class="nav-link">⚙ Integrationen &amp; API</button>
+  </aside>
+
+  <main id="main">
+    <section id="empty" class="empty">
+      <h1>Deine Meetings – lokal transkribiert</h1>
+      <p>Lade eine Audio- oder Videodatei hoch (MP3, MP4, WAV, M4A …) oder nimm direkt im Browser auf.
+        Transkription mit NVIDIA Parakeet, Sprechererkennung, Zusammenfassung, Action Items und Suche –
+        alles auf diesem Rechner.</p>
+    </section>
+
+    <section id="integrations" hidden>
+      <h1>Integrationen &amp; API</h1>
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <h3>Bot als Teilnehmer schicken</h3>
+            <p class="muted small">Der Bot tritt dem Meeting als „Notetaker“ bei, nimmt den Ton aller Teilnehmer auf
+              und erstellt danach Transkript und Zusammenfassung. Unterstützt: Google Meet (sowie beliebige Webseiten
+              mit Plattform „web“).</p>
+            <form id="bot-form" class="stack">
+              <input id="bot-url" placeholder="https://meet.google.com/abc-defg-hij" required>
+              <div class="row"><input id="bot-title" placeholder="Titel (optional)">
+                <input id="bot-at" type="datetime-local" title="Startzeit (leer = sofort)"></div>
+              <button class="primary">Bot schicken</button>
+            </form>
+            <ul id="bot-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>Google Kalender &amp; Gmail</h3>
+            <div id="google-box"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>API-Schlüssel</h3>
+            <p class="muted small">Für Zugriffe von anderen Rechnern, Skripten, Zapier/n8n oder dem MCP-Server:
+              <code>Authorization: Bearer nt_…</code>. Doku: <a href="/docs" target="_blank">/docs</a></p>
+            <form id="key-form" class="row"><input id="key-name" placeholder="Name, z. B. n8n" required>
+              <button>Erzeugen</button></form>
+            <div id="key-new"></div>
+            <ul id="key-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>Webhooks</h3>
+            <p class="muted small">POST bei <code>meeting.completed</code>, <code>meeting.failed</code>,
+              <code>bot.status</code>; signiert mit <code>X-Notetaker-Signature</code> (HMAC-SHA256).</p>
+            <form id="hook-form" class="row"><input id="hook-url" placeholder="https://…/webhook" required>
+              <select id="hook-events"><option value="*">alle Ereignisse</option>
+                <option value="meeting.completed">meeting.completed</option>
+                <option value="bot.status">bot.status</option></select>
+              <button>Hinzufügen</button></form>
+            <div id="hook-new"></div>
+            <ul id="hook-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>MCP (Claude &amp; Co.)</h3>
+            <p class="muted small">Meetings direkt im KI-Assistenten durchsuchen und zusammenfassen:</p>
+            <pre>claude mcp add notetaker -- python -m notetaker mcp</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="meeting" hidden>
+      <header class="meeting-head">
+        <div>
+          <h1 id="m-title" contenteditable="true" spellcheck="false"></h1>
+          <div id="m-meta" class="meta"></div>
+        </div>
+        <div class="head-actions">
+          <select id="m-export" aria-label="Exportieren">
+            <option value="">Exportieren …</option>
+            <option value="md">Markdown (.md)</option>
+            <option value="txt">Text (.txt)</option>
+            <option value="srt">Untertitel (.srt)</option>
+            <option value="json">JSON</option>
+          </select>
+          <button id="m-delete" class="danger" title="Meeting löschen">Löschen</button>
+        </div>
+      </header>
+
+      <div id="m-progress" class="progress" hidden>
+        <div class="bar"><div id="m-progress-bar"></div></div>
+        <span id="m-progress-label"></span>
+      </div>
+
+      <audio id="player" controls preload="metadata"></audio>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" data-tab="summary" class="active">Übersicht</button>
+        <button role="tab" data-tab="transcript">Transkript</button>
+        <button role="tab" data-tab="bookmarks">Markierungen</button>
+        <button role="tab" data-tab="ask">Frag das Meeting</button>
+      </div>
+
+      <div id="tab-summary" class="tab"></div>
+      <div id="tab-transcript" class="tab" hidden>
+        <input id="t-filter" type="search" placeholder="Im Transkript suchen …">
+        <div id="transcript"></div>
+      </div>
+      <div id="tab-bookmarks" class="tab" hidden>
+        <form id="bm-form" class="row">
+          <select id="bm-kind">
+            <option value="soundbite">Soundbite</option>
+            <option value="action">Action Item</option>
+            <option value="comment">Kommentar</option>
+          </select>
+          <input id="bm-note" placeholder="Notiz zur aktuellen Abspielposition …">
+          <button class="primary">Markieren</button>
+        </form>
+        <ul id="bookmarks" class="list"></ul>
+      </div>
+      <div id="tab-ask" class="tab" hidden>
+        <form id="ask-form" class="row">
+          <input id="ask-q" placeholder="z. B. Welche Aufgaben wurden vereinbart?" required>
+          <button class="primary">Fragen</button>
+        </form>
+        <div id="ask-answer"></div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-upload">
+    <form method="dialog" id="upload-form">
+      <h2>Datei hochladen</h2>
+      <label>Audio/Video <input type="file" id="up-file" required
+        accept=".mp3,.mp4,.wav,.m4a,.webm,.ogg,.opus,.flac,.aac,.mov,.mkv,audio/*,video/*"></label>
+      <label>Titel <input id="up-title" placeholder="optional"></label>
+      <label>Anzahl Sprecher <input id="up-speakers" type="number" min="1" max="20" placeholder="automatisch"></label>
+      <menu><button value="cancel" formnovalidate>Abbrechen</button><button class="primary" value="ok">Hochladen</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-record">
+    <form method="dialog" id="record-form">
+      <h2>Aufnahme</h2>
+      <label>Titel <input id="rec-title" placeholder="z. B. Team-Weekly"></label>
+      <label>Quelle
+        <select id="rec-source">
+          <option value="mic">Mikrofon (Gespräch vor Ort)</option>
+          <option value="mix">Mikrofon + Tab-/Bildschirmton (Online-Meeting)</option>
+        </select>
+      </label>
+      <div class="rec-state"><span id="rec-dot" class="dot"></span> <span id="rec-time">00:00</span>
+        <canvas id="rec-level" width="200" height="24"></canvas></div>
+      <menu>
+        <button value="cancel" id="rec-cancel" formnovalidate>Abbrechen</button>
+        <button type="button" id="rec-start" class="primary">Start</button>
+        <button type="button" id="rec-stop" class="primary" hidden>Stopp &amp; transkribieren</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
