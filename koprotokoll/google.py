@@ -1,7 +1,7 @@
 """Google-Integration: OAuth 2.0, Kalender (Termine lesen) und Gmail (Recap versenden).
 
 Einrichtung: In der Google Cloud Console einen OAuth-Client vom Typ „Webanwendung“
-anlegen, als Weiterleitungs-URI ``<NOTETAKER_PUBLIC_URL>/api/integrations/google/callback``
+anlegen, als Weiterleitungs-URI ``<KOPROTOKOLL_PUBLIC_URL>/api/integrations/google/callback``
 eintragen und die Calendar- sowie Gmail-API aktivieren. Client-ID und -Secret per
 Umgebungsvariable oder in der Weboberfläche hinterlegen.
 """

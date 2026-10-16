@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="t d">
-  <title id="t">Notetaker – Meeting-Assistent auf Deutsch, lokal, Open Source</title>
+  <title id="t">Koprotokoll – Meeting-Assistent auf Deutsch, lokal, Open Source</title>
   <desc id="d">Eine Schallwelle wird zu Transkriptzeilen mit Sprechern, Zusammenfassung und Aufgaben.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -19,7 +19,8 @@
   <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" fill="#ffffff">
     <circle cx="86" cy="104" r="14" fill="#9b7bff"/>
     <circle cx="86" cy="104" r="24" fill="none" stroke="#9b7bff" stroke-opacity="0.45" stroke-width="3"/>
-    <text x="124" y="118" font-size="46" font-weight="800" letter-spacing="-1">Notetaker</text>
+    <text x="124" y="118" font-size="46" font-weight="800" letter-spacing="-1"><tspan fill="#b9a3ff">Ko</tspan>protokoll</text>
+    <text x="420" y="116" font-size="15" font-weight="600" fill="#c8bcf5">Teil der Ko-Familie</text>
     <text x="72" y="180" font-size="30" font-weight="600" fill="#e9e2ff">Dein Meeting-Assistent.</text>
     <text x="72" y="222" font-size="30" font-weight="600" fill="#e9e2ff">Auf Deutsch. Lokal. Open Source.</text>
     <text x="72" y="268" font-size="18" fill="#c8bcf5">Transkript · Sprecher · Zusammenfassung · Aufgaben · Suche · Meeting-Bot</text>

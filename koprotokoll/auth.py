@@ -2,8 +2,8 @@
 
 Regel: Anfragen direkt von diesem Rechner (Loopback, ohne Proxy-Header) dürfen ohne
 Schlüssel zugreifen – so funktioniert die lokale Weboberfläche ohne Einrichtung.
-Alle anderen Anfragen brauchen ``Authorization: Bearer nt_…`` (oder ``X-API-Key``).
-Mit ``NOTETAKER_REQUIRE_KEY=1`` gilt die Pflicht auch lokal.
+Alle anderen Anfragen brauchen ``Authorization: Bearer kp_…`` (oder ``X-API-Key``).
+Mit ``KOPROTOKOLL_REQUIRE_KEY=1`` gilt die Pflicht auch lokal.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ def hash_key(key: str) -> str:
 
 
 def create_key(db: Database, name: str) -> dict:
-    key = "nt_" + secrets.token_urlsafe(32)
+    key = "kp_" + secrets.token_urlsafe(32)
     key_id = db.add_api_key(name, key[:10], hash_key(key))
     return {"id": key_id, "name": name, "key": key}
 
@@ -47,7 +47,7 @@ def require_auth(request: Request) -> None:
     key = presented_key(request)
     if key and db.find_api_key(hash_key(key)):
         return
-    if not key and is_local(request) and os.environ.get("NOTETAKER_REQUIRE_KEY", "0") != "1":
+    if not key and is_local(request) and os.environ.get("KOPROTOKOLL_REQUIRE_KEY", "0") != "1":
         return
-    raise HTTPException(401, "Gültiger API-Schlüssel erforderlich (Authorization: Bearer nt_…)",
+    raise HTTPException(401, "Gültiger API-Schlüssel erforderlich (Authorization: Bearer kp_…)",
                         headers={"WWW-Authenticate": "Bearer"})

@@ -6,11 +6,11 @@ Vollständige, interaktive Doku: **http://127.0.0.1:8000/docs** (OpenAPI unter `
 
 Anfragen direkt vom eigenen Rechner brauchen keinen Schlüssel. Von anderen Rechnern, hinter
 einem Reverse-Proxy oder aus Tools wie n8n/Zapier/Make: API-Schlüssel in der Oberfläche oder per
-`python -m notetaker create-key n8n` erzeugen und mitsenden. Mit `NOTETAKER_REQUIRE_KEY=1` gilt
+`python -m koprotokoll create-key n8n` erzeugen und mitsenden. Mit `KOPROTOKOLL_REQUIRE_KEY=1` gilt
 die Schlüsselpflicht auch lokal.
 
 ```bash
-KEY=nt_…
+KEY=kp_…
 # Bot in ein Meeting schicken
 curl -X POST http://localhost:8000/api/bots -H "Authorization: Bearer $KEY" \
      -H "Content-Type: application/json" -d '{"meeting_url": "https://meet.google.com/abc-defg-hij"}'
@@ -38,14 +38,14 @@ Ereignisse `meeting.completed`, `meeting.failed`, `bot.status` werden als `POST`
 ```python
 import hmac, hashlib
 expected = "sha256=" + hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()
-assert hmac.compare_digest(expected, request.headers["X-Notetaker-Signature"])
+assert hmac.compare_digest(expected, request.headers["X-Koprotokoll-Signature"])
 ```
 
 ## MCP-Server (Claude, Cursor & Co.)
 
 ```bash
-claude mcp add notetaker -- python -m notetaker mcp
-# entfernter Server: NOTETAKER_URL=https://… NOTETAKER_API_KEY=nt_… python -m notetaker mcp
+claude mcp add koprotokoll -- python -m koprotokoll mcp
+# entfernter Server: KOPROTOKOLL_URL=https://… KOPROTOKOLL_API_KEY=kp_… python -m koprotokoll mcp
 ```
 
 Werkzeuge: `list_meetings`, `search_meetings`, `get_summary`, `get_transcript`, `ask_meeting`, `send_bot`.

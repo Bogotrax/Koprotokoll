@@ -1,7 +1,7 @@
 """Ereignisse (meeting.completed, bot.status …) an Webhooks und interne Abonnenten verteilen.
 
 Webhook-Zustellung: ``POST <url>`` mit JSON ``{"event", "created_at", "data"}`` und
-Signatur ``X-Notetaker-Signature: sha256=<HMAC-SHA256(secret, body)>``.
+Signatur ``X-Koprotokoll-Signature: sha256=<HMAC-SHA256(secret, body)>``.
 """
 
 from __future__ import annotations
@@ -64,9 +64,9 @@ class EventBus:
         body = json.dumps({"event": event, "created_at": time.time(), "data": data}, ensure_ascii=False).encode()
         req = urllib.request.Request(hook["url"], data=body, method="POST", headers={
             "Content-Type": "application/json",
-            "User-Agent": "Notetaker-Webhook/1",
-            "X-Notetaker-Event": event,
-            "X-Notetaker-Signature": sign(hook["secret"], body),
+            "User-Agent": "Koprotokoll-Webhook/1",
+            "X-Koprotokoll-Event": event,
+            "X-Koprotokoll-Signature": sign(hook["secret"], body),
         })
         for attempt in range(self.retries):
             try:

@@ -6,10 +6,47 @@ braucht, um in diesem Repository sofort produktiv und sicher zu arbeiten.
 
 ## Worum es geht
 
-**Notetaker** ist ein lokaler Meeting-Assistent nach dem Vorbild von Fireflies.ai: Aufnahme
+**Koprotokoll** (Teil der [Ko-Familie](docs/plan.md#6-die-ko-familie)) ist ein lokaler Meeting-Assistent nach dem Vorbild von Fireflies.ai: Aufnahme
 (auch per Bot, der Google Meet beitritt) → Transkription mit NVIDIA Parakeet → Sprechererkennung
 → Zusammenfassung mit lokalem LLM → Suche, Export, API, Webhooks, MCP.
 **Leitprinzipien: deutsch, lokal, offen.** Kein Feature darf eine Cloud voraussetzen.
+
+## Mitmachen als Agent: Issue → Fork → Pull Request
+
+Dieser Ablauf gilt für Agenten, die selbstständig arbeiten (z. B. Claude Code im Web, Codex,
+Copilot Coding Agent, Jules), genauso wie für Menschen mit Agent im Terminal.
+
+1. **Aufgabe wählen.** Offene Issues mit dem Label
+   [`agent-ready`](https://github.com/enving/Koprotokoll/issues?q=is%3Aissue+is%3Aopen+label%3Aagent-ready)
+   sind so beschrieben, dass ein Agent sie ohne Rückfragen umsetzen kann (Kontext, Aufgabe,
+   „Fertig, wenn“, betroffene Dateien). `good first issue` = klein und gut zum Einstieg.
+   Den Gesamtzusammenhang liefert [docs/plan.md](docs/plan.md).
+2. **Prüfen und beanspruchen.** Ist das Issue schon zugewiesen oder hat jemand in den letzten
+   7 Tagen „übernehme ich“ kommentiert, ein anderes wählen. Sonst einen Kommentar hinterlassen:
+   > 🤖 Übernehme ich. Agent: *Name/Modell*, verantwortlich: @*github-name*. Plan: *1–3 Sätze*.
+
+   Ein Anspruch verfällt, wenn nach 7 Tagen kein (Entwurfs-)Pull-Request verlinkt ist.
+3. **Fork oder Branch.**
+   - Ohne Schreibrechte (der Normalfall): Repository forken
+     (`gh repo fork enving/Koprotokoll --clone` oder über die GitHub-Oberfläche).
+   - Mit Schreibrechten: direkt im Repository einen Branch anlegen.
+   - Branch-Name: `agent/<issue-nr>-<kurzname>`, z. B. `agent/12-jitsi-adapter`.
+4. **Umsetzen.** Nur das, was das Issue verlangt. Die Regeln unten gelten, Tests mit `pytest -q`.
+   Bei größeren Aufgaben früh einen **Entwurfs-PR** öffnen, damit andere den Stand sehen.
+5. **Pull Request** gegen `main` von `enving/Koprotokoll`:
+   - Titel auf Deutsch, z. B. „Bot-Adapter für Jitsi (#12)“
+   - im Text `Closes #<nr>`, die PR-Vorlage ausfüllen, beschreiben, **wie getestet** wurde
+   - offen sagen, was **nicht** getestet werden konnte (z. B. echte Meetings, Outlook auf Windows)
+   - kennzeichnen, dass der PR von einem Agenten erstellt wurde, und den verantwortlichen Menschen nennen
+6. **Review.** Die CI muss grün sein. Jeder Agenten-PR braucht die Freigabe eines Menschen –
+   Agenten mergen nie selbst. Review-Kommentare im selben Branch beheben.
+7. **Neue Ideen** oder zu große Aufgaben: nicht im PR mitlösen, sondern ein neues Issue anlegen
+   (Vorlage „Agenten-Aufgabe“) und im PR darauf verweisen.
+
+**Für Maintainer:** Eine Aufgabe wird `agent-ready`, wenn sie Kontext, klare Aufgabe,
+„Fertig, wenn“-Kriterien und Hinweise auf die betroffenen Dateien hat – die Vorlage
+„Agenten-Aufgabe“ hilft dabei. Agenten, die direkt am Issue arbeiten können (z. B. per Zuweisung
+oder Erwähnung), können so ein Issue ohne weitere Absprache übernehmen.
 
 ## Schnellstart für Agenten
 
@@ -20,25 +57,25 @@ pytest -q                      # ~20 s, keine Modelle und kein Internet nötig
 ```
 
 - Ist `ffmpeg` nicht installiert, werden ein paar Tests übersprungen.
-- Der Browser-Test des Bots braucht `playwright install chromium` (oder `NOTETAKER_BOT_CHROME=/pfad/zu/chrome`); fehlt der Browser, wird er übersprungen.
-- App starten: `python -m notetaker --port 8000`, Daten liegen in `./data` (änderbar mit `NOTETAKER_DATA`).
+- Der Browser-Test des Bots braucht `playwright install chromium` (oder `KOPROTOKOLL_BOT_CHROME=/pfad/zu/chrome`); fehlt der Browser, wird er übersprungen.
+- App starten: `python -m koprotokoll --port 8000`, Daten liegen in `./data` (änderbar mit `KOPROTOKOLL_DATA`).
 - Echte Modelle nur bei Arbeit an der Erkennung: `python scripts/download_models.py` (~700 MB).
 
 ## Landkarte des Codes
 
 | Pfad | Inhalt |
 |---|---|
-| `notetaker/app.py` | FastAPI-App, alle REST-Endpunkte (`create_app()` ist die Fabrik, auch für Tests) |
-| `notetaker/pipeline.py` | Hintergrund-Queue: konvertieren → transkribieren → Sprecher → zusammenfassen |
-| `notetaker/speech.py` | Parakeet-Transkription, Diarisierung, `build_utterances()` (Wörter + Sprecher → Äußerungen) |
-| `notetaker/summarize.py` | LLM-Client (OpenAI-kompatibel), Prompts, Offline-Heuristik, „Frag das Meeting“ |
-| `notetaker/db.py` | SQLite-Schema, FTS5-Suche, Migrationen in `Database.__init__` |
-| `notetaker/bot/` | Meeting-Bot: `runner.py` (Steuerung), `platforms.py` (Meet-Adapter, Link-Erkennung), `capture.js` (WebRTC-Mitschnitt im Browser) |
-| `notetaker/google.py`, `scheduler.py`, `recap.py` | OAuth, Kalender-Auto-Join, Recap per Gmail |
-| `notetaker/auth.py`, `events.py` | API-Schlüssel, Webhooks |
-| `notetaker/mcp_server.py` | MCP-Server über stdio |
-| `notetaker/static/` | Weboberfläche: Vanilla JS, kein Build-Schritt |
-| `tests/` | `test_notetaker.py` (Kern), `test_integrations.py` (API, Bot, Google), `fixtures/` |
+| `koprotokoll/app.py` | FastAPI-App, alle REST-Endpunkte (`create_app()` ist die Fabrik, auch für Tests) |
+| `koprotokoll/pipeline.py` | Hintergrund-Queue: konvertieren → transkribieren → Sprecher → zusammenfassen |
+| `koprotokoll/speech.py` | Parakeet-Transkription, Diarisierung, `build_utterances()` (Wörter + Sprecher → Äußerungen) |
+| `koprotokoll/summarize.py` | LLM-Client (OpenAI-kompatibel), Prompts, Offline-Heuristik, „Frag das Meeting“ |
+| `koprotokoll/db.py` | SQLite-Schema, FTS5-Suche, Migrationen in `Database.__init__` |
+| `koprotokoll/bot/` | Meeting-Bot: `runner.py` (Steuerung), `platforms.py` (Meet-Adapter, Link-Erkennung), `capture.js` (WebRTC-Mitschnitt im Browser) |
+| `koprotokoll/google.py`, `scheduler.py`, `recap.py` | OAuth, Kalender-Auto-Join, Recap per Gmail |
+| `koprotokoll/auth.py`, `events.py` | API-Schlüssel, Webhooks |
+| `koprotokoll/mcp_server.py` | MCP-Server über stdio |
+| `koprotokoll/static/` | Weboberfläche: Vanilla JS, kein Build-Schritt |
+| `tests/` | `test_koprotokoll.py` (Kern), `test_integrations.py` (API, Bot, Google), `fixtures/` |
 | `docs/` | Einrichtung, API, Architektur, Grafiken |
 
 Details: [docs/architektur.md](docs/architektur.md).

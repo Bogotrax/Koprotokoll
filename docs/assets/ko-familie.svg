@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="t d">
+  <title id="t">Die Ko-Familie</title>
+  <desc id="d">Lokale, deutsche Open-Source-Werkzeuge mit der Vorsilbe Ko: Koprotokoll für Meetings, Kodiktat zum Diktieren, Kostimme als gemeinsame Spracherkennung, dazu Ideen wie Kopost, Kowissen und Kotermin.</desc>
+  <defs>
+    <radialGradient id="g" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#7d55f0"/>
+      <stop offset="1" stop-color="#4b23b8"/>
+    </radialGradient>
+    <style>
+      .t { font-family: Inter, 'Segoe UI', system-ui, sans-serif; }
+      .name { font: 800 22px Inter, 'Segoe UI', system-ui, sans-serif; fill: #1d1d2b; }
+      .ko { fill: #6c3ce1; }
+      .s { font: 400 13px Inter, 'Segoe UI', system-ui, sans-serif; fill: #5b5b70; }
+      .tag { font: 700 11px Inter, 'Segoe UI', system-ui, sans-serif; letter-spacing: .06em; }
+      .card { fill: #ffffff; stroke: #d9d3f2; stroke-width: 1.5; }
+      .idea { fill: #ffffff; stroke: #b9a3ff; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .ln { stroke: #b9a3ff; stroke-width: 2.5; fill: none; }
+      .ln2 { stroke: #d9d3f2; stroke-width: 2; fill: none; stroke-dasharray: 5 5; }
+    </style>
+  </defs>
+  <rect width="1200" height="600" rx="20" fill="#f7f7fb"/>
+  <text x="40" y="54" class="t" font-size="26" font-weight="800" fill="#1d1d2b">Die <tspan fill="#6c3ce1">Ko</tspan>-Familie</text>
+  <text x="40" y="82" class="s" font-size="15">Ko wie Kollege, kooperativ, Kontext – lokale, deutsche Open-Source-Helfer, die zusammenpassen.</text>
+
+  <!-- Verbindungen -->
+  <path d="M600 330 L 330 200" class="ln"/>
+  <path d="M600 330 L 870 200" class="ln"/>
+  <path d="M600 330 L 600 436" class="ln"/>
+  <path d="M600 330 L 260 470" class="ln2"/>
+  <path d="M600 330 L 940 470" class="ln2"/>
+
+  <!-- Mitte -->
+  <circle cx="600" cy="330" r="86" fill="url(#g)"/>
+  <circle cx="600" cy="330" r="100" fill="none" stroke="#b9a3ff" stroke-opacity=".5" stroke-width="3"/>
+  <text x="600" y="342" text-anchor="middle" class="t" font-size="52" font-weight="800" fill="#ffffff">Ko</text>
+  <text x="600" y="372" text-anchor="middle" class="t" font-size="13" font-weight="600" fill="#e9e2ff">lokal · deutsch · offen</text>
+
+  <!-- Koprotokoll -->
+  <rect x="130" y="130" width="330" height="120" rx="16" class="card" stroke="#6c3ce1" stroke-width="2.5"/>
+  <text x="152" y="168" class="name"><tspan class="ko">Ko</tspan>protokoll</text>
+  <rect x="362" y="150" width="80" height="22" rx="11" fill="#0e8f7e"/>
+  <text x="402" y="165" text-anchor="middle" class="tag" fill="#fff">GIBT ES</text>
+  <text x="152" y="196" class="s">Meetings mitschreiben, Sprecher,</text>
+  <text x="152" y="216" class="s">Zusammenfassung, Aufgaben, Meeting-Bot</text>
+  <text x="152" y="236" class="s" style="fill:#6c3ce1">dieses Repository</text>
+
+  <!-- Kodiktat -->
+  <rect x="740" y="130" width="330" height="120" rx="16" class="card"/>
+  <text x="762" y="168" class="name"><tspan class="ko">Ko</tspan>diktat</text>
+  <rect x="950" y="150" width="104" height="22" rx="11" fill="#f59f00"/>
+  <text x="1002" y="165" text-anchor="middle" class="tag" fill="#fff">UMBENENNEN</text>
+  <text x="762" y="196" class="s">Hotkey halten, sprechen – Text steht</text>
+  <text x="762" y="216" class="s">im Programm; wird zur Begleit-App</text>
+  <text x="762" y="236" class="s" style="fill:#6c3ce1">heute: Dictate / deutsche-transkription</text>
+
+  <!-- Kostimme -->
+  <rect x="450" y="436" width="300" height="120" rx="16" class="card"/>
+  <text x="472" y="474" class="name"><tspan class="ko">Ko</tspan>stimme</text>
+  <rect x="640" y="456" width="94" height="22" rx="11" fill="#6c3ce1"/>
+  <text x="687" y="471" text-anchor="middle" class="tag" fill="#fff">GEPLANT</text>
+  <text x="472" y="502" class="s">gemeinsame deutsche Spracherkennung</text>
+  <text x="472" y="522" class="s">(Parakeet primeline) als Paket/Server</text>
+  <text x="472" y="542" class="s" style="fill:#6c3ce1">für Koprotokoll und Kodiktat</text>
+
+  <!-- Ideen -->
+  <rect x="60" y="420" width="250" height="100" rx="16" class="idea"/>
+  <text x="80" y="456" class="name" font-size="20"><tspan class="ko">Ko</tspan>post</text>
+  <text x="80" y="482" class="s">E-Mails vorsortieren und</text>
+  <text x="80" y="500" class="s">Antworten entwerfen · Idee</text>
+
+  <rect x="890" y="420" width="250" height="100" rx="16" class="idea"/>
+  <text x="910" y="456" class="name" font-size="20"><tspan class="ko">Ko</tspan>wissen</text>
+  <text x="910" y="482" class="s">Protokolle und Dokumente</text>
+  <text x="910" y="500" class="s">durchsuchen und fragen · Idee</text>
+
+  <!-- Legende -->
+  <text x="40" y="584" class="s">Durchgezogen: gibt es oder ist geplant · gestrichelt: Ideen für weitere Ko-Werkzeuge</text>
+</svg>

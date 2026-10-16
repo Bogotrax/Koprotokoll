@@ -13,12 +13,12 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-import notetaker.google as google_mod
-from notetaker.app import create_app
-from notetaker.bot.platforms import detect_platform, find_meeting_url
-from notetaker.config import Settings
-from notetaker.recap import build_recap
-from test_notetaker import FakeDiarizer, FakeTranscriber, NoLLM, wait_done, wav_bytes
+import koprotokoll.google as google_mod
+from koprotokoll.app import create_app
+from koprotokoll.bot.platforms import detect_platform, find_meeting_url
+from koprotokoll.config import Settings
+from koprotokoll.recap import build_recap
+from test_koprotokoll import FakeDiarizer, FakeTranscriber, NoLLM, wait_done, wav_bytes
 
 FIXTURES = Path(__file__).parent / "fixtures"
 REMOTE = {"X-Forwarded-For": "203.0.113.7"}  # simuliert Zugriff von außen (über Proxy)
@@ -59,11 +59,11 @@ def test_remote_requests_need_api_key(client):
     assert client.get("/api/meetings").status_code == 200  # lokal ohne Schlüssel
     assert client.get("/api/meetings", headers=REMOTE).status_code == 401
     key = client.post("/api/keys", json={"name": "n8n"}).json()["key"]
-    assert key.startswith("nt_")
+    assert key.startswith("kp_")
     ok = client.get("/api/meetings", headers={**REMOTE, "Authorization": f"Bearer {key}"})
     assert ok.status_code == 200
     assert client.get(f"/api/meetings?key={key}", headers=REMOTE).status_code == 200
-    assert client.get("/api/meetings", headers={**REMOTE, "Authorization": "Bearer nt_falsch"}).status_code == 401
+    assert client.get("/api/meetings", headers={**REMOTE, "Authorization": "Bearer kp_falsch"}).status_code == 401
     listed = client.get("/api/keys").json()
     assert listed[0]["name"] == "n8n" and "key" not in listed[0] and listed[0]["last_used"]
     client.delete(f"/api/keys/{listed[0]['id']}")
@@ -73,7 +73,7 @@ def test_remote_requests_need_api_key(client):
 
 
 def test_require_key_also_locally(client, monkeypatch):
-    monkeypatch.setenv("NOTETAKER_REQUIRE_KEY", "1")
+    monkeypatch.setenv("KOPROTOKOLL_REQUIRE_KEY", "1")
     assert client.get("/api/meetings").status_code == 401
 
 
@@ -113,7 +113,7 @@ def test_webhook_signed_meeting_completed(client, tmp_path):
         wait_done(client, r.json()["id"])
         (headers, body), = rx.wait()
         expected = "sha256=" + hmac.new(hook["secret"].encode(), body, hashlib.sha256).hexdigest()
-        assert headers["X-Notetaker-Signature"] == expected
+        assert headers["X-Koprotokoll-Signature"] == expected
         payload = json.loads(body)
         assert payload["event"] == "meeting.completed"
         assert payload["data"]["id"] == r.json()["id"] and payload["data"]["summary"]["action_items"]
@@ -140,7 +140,7 @@ def test_bot_api_schedule_and_cancel(client):
 
 
 def _chrome_path() -> str | None:
-    custom = os.environ.get("NOTETAKER_BOT_CHROME")
+    custom = os.environ.get("KOPROTOKOLL_BOT_CHROME")
     if custom and Path(custom).exists():
         return custom
     try:

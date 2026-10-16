@@ -106,9 +106,9 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             pipeline.submit(m["id"])
 
     app = FastAPI(
-        title="Notetaker API",
+        title="Koprotokoll API",
         description="Lokaler Meeting-Assistent: Bots, Transkripte (Parakeet), Zusammenfassungen, Suche, "
-                    "Webhooks und Google-Integration. Authentifizierung: `Authorization: Bearer nt_…` "
+                    "Webhooks und Google-Integration. Authentifizierung: `Authorization: Bearer kp_…` "
                     "(lokale Anfragen ohne Proxy brauchen keinen Schlüssel).",
         version="2.0",
     )
@@ -305,7 +305,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         hook = next((h for h in db.list_webhooks() if h["id"] == webhook_id), None)
         if hook is None:
             raise HTTPException(404, "Webhook nicht gefunden")
-        return {"delivered": events.deliver(hook, "test", {"message": "Hallo vom Notetaker"})}
+        return {"delivered": events.deliver(hook, "test", {"message": "Hallo vom Koprotokoll"})}
 
     # -- Google (Kalender + Gmail) ----------------------------------------------------------------
     @api.get("/api/integrations/google", tags=["google"])

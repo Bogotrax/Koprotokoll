@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Notetaker – Dein Meeting-Assistent. Auf Deutsch. Lokal. Open Source." width="100%">
+  <img src="docs/assets/banner.svg" alt="Koprotokoll – Dein Meeting-Assistent. Auf Deutsch. Lokal. Open Source." width="100%">
 </p>
 
 <p align="center">
@@ -23,7 +23,7 @@
 
 ---
 
-**Notetaker** schreibt deine Meetings mit, erkennt, wer spricht, fasst zusammen und sammelt die
+**Koprotokoll** schreibt deine Meetings mit, erkennt, wer spricht, fasst zusammen und sammelt die
 Aufgaben ein – so wie [Fireflies.ai](https://fireflies.ai/), Otter oder tl;dv. Der Unterschied:
 **Alles läuft auf deinem eigenen Rechner, auf Deutsch, und der Code ist offen.**
 Kein Audio verlässt dein Gerät, kein Abo, keine Datenweitergabe an US-Clouds.
@@ -34,7 +34,7 @@ Meeting-Assistenten sind enorm praktisch. Die bekannten Dienste schicken aber je
 deiner Besprechungen in eine fremde Cloud. Für Kundengespräche, Betriebsratssitzungen, Arztpraxen,
 Kanzleien, Behörden oder einfach vertrauliche Team-Meetings ist das oft ein No-Go.
 
-| | Notetaker | typische Cloud-Dienste |
+| | Koprotokoll | typische Cloud-Dienste |
 |---|---|---|
 | Wo landet das Audio? | **auf deinem Rechner** | Server des Anbieters |
 | Deutsch | **von Grund auf** (Oberfläche, Zusammenfassungen, Modell) | oft nachrangig |
@@ -111,19 +111,19 @@ Mehr dazu in der [Architektur-Übersicht](docs/architektur.md).
 Voraussetzungen: **Python 3.11+** und **ffmpeg**. Eine Grafikkarte ist nicht nötig.
 
 ```bash
-git clone https://github.com/enving/kontextlayer_kommunikation.git
-cd kontextlayer_kommunikation
+git clone https://github.com/enving/Koprotokoll.git
+cd Koprotokoll
 python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium                        # nur für den Meeting-Bot
-python -m notetaker                                # → http://127.0.0.1:8000
+python -m koprotokoll                                # → http://127.0.0.1:8000
 ```
 
-Beim ersten Transkribieren lädt Notetaker die Modelle (~700 MB) einmalig herunter. Wer danach
+Beim ersten Transkribieren lädt Koprotokoll die Modelle (~700 MB) einmalig herunter. Wer danach
 komplett offline arbeiten will, lädt sie vorab: `python scripts/download_models.py`.
 
 **Für richtig gute Zusammenfassungen** ein lokales Sprachmodell starten, z. B. mit
-[Ollama](https://ollama.com): `ollama pull qwen2.5:7b-instruct` – Notetaker findet es automatisch.
+[Ollama](https://ollama.com): `ollama pull qwen2.5:7b-instruct` – Koprotokoll findet es automatisch.
 Ohne LLM gibt es eine einfache, rein lokale Auswertung.
 
 ➡️ Alles Weitere – Meeting-Bot, Google Kalender & Gmail, Konfiguration – steht in
@@ -148,10 +148,10 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
 - [x] Meeting-Bot für Google Meet, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
-- [ ] Deutsches Modell **Parakeet primeline** und Server für **Dictate** (`/v1/audio/transcriptions`)
+- [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [ ] Kalender aus **Outlook**, **CalDAV/ICS** (Nextcloud, iCloud, Thunderbird …)
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
-- [ ] **Begleit-App** (aus Dictate) für Teams-/Zoom-Apps und Telefonate
+- [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
 - [ ] Meeting-Bot für **Jitsi**, **BigBlueButton**, **Microsoft Teams** und **Zoom**
 - [ ] **Live-Transkript** während des Meetings
 - [ ] Sprecher **wiedererkennen** über Meetings hinweg (Stimmprofile)
@@ -159,8 +159,21 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [ ] Mehrbenutzer-Betrieb mit Teams und Freigaben
 
 Wie das umgesetzt werden soll – Outlook, Thunderbird, Nextcloud, Desktop-Meetings und das
-Zusammenspiel mit [Dictate](https://github.com/enving/dictate) – steht im
-**[Plan](docs/plan.md)**. Ideen und Wünsche gerne als [Issue](https://github.com/enving/kontextlayer_kommunikation/issues).
+Zusammenspiel mit Kodiktat – steht im
+**[Plan](docs/plan.md)**. Ideen und Wünsche gerne als [Issue](https://github.com/enving/Koprotokoll/issues).
+
+## 🧬 Die Ko-Familie
+
+<p align="center">
+  <img src="docs/assets/ko-familie.svg" alt="Die Ko-Familie: Koprotokoll, Kodiktat, Kostimme und Ideen wie Kopost und Kowissen" width="100%">
+</p>
+
+Koprotokoll ist Teil einer kleinen Familie lokaler, deutscher Open-Source-Werkzeuge. Alle tragen
+die Vorsilbe **Ko** – wie *Kollege*, *kooperativ*, *Kontext* – und passen zusammen:
+**Kodiktat** (Diktieren per Hotkey, heute noch [Dictate](https://github.com/enving/dictate) /
+[deutsche-transkription](https://github.com/enving/deutsche-transkription)) und **Kostimme**
+(gemeinsame deutsche Spracherkennung) teilen sich dasselbe Modell mit Koprotokoll.
+Mehr dazu im [Plan](docs/plan.md#6-die-ko-familie).
 
 ## 🤝 Mitmachen
 
@@ -174,11 +187,13 @@ pytest                  # läuft ohne Modelle und ohne Internet in Sekunden
 
 **Du arbeitest mit einem Coding-Agenten** (Claude Code, Codex, Cursor, Copilot, Aider …)?
 Dann zeig ihm **[AGENTS.md](AGENTS.md)** – dort steht alles, was ein Agent braucht, um sofort
-loszulegen: Aufbau, Befehle, Konventionen und gute Einstiegsaufgaben.
+loszulegen: Aufbau, Befehle, Konventionen und der Ablauf **Issue → Fork → Pull Request**.
+Aufgaben, die ein Agent selbstständig umsetzen kann, haben das Label
+[`agent-ready`](https://github.com/enving/Koprotokoll/issues?q=is%3Aissue+is%3Aopen+label%3Aagent-ready).
 
 ## ⚖️ Rechtliches & Verantwortung
 
-Notetaker ist ein Werkzeug. Wer Gespräche aufzeichnet, braucht in Deutschland grundsätzlich
+Koprotokoll ist ein Werkzeug. Wer Gespräche aufzeichnet, braucht in Deutschland grundsätzlich
 die **Einwilligung aller Beteiligten** (§ 201 StGB, DSGVO). Der Meeting-Bot tritt deshalb
 sichtbar unter seinem Namen bei. Sag zu Beginn eines Meetings Bescheid, dass mitgeschrieben wird.
 

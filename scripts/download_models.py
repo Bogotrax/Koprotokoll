@@ -1,4 +1,4 @@
-"""Alle Modelle vorab herunterladen, damit der Notetaker danach komplett offline läuft.
+"""Alle Modelle vorab herunterladen, damit der Koprotokoll danach komplett offline läuft.
 
     python scripts/download_models.py
 """
@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from notetaker.config import Settings  # noqa: E402
-from notetaker.speech import ensure_diarization_models  # noqa: E402
+from koprotokoll.config import Settings  # noqa: E402
+from koprotokoll.speech import ensure_diarization_models  # noqa: E402
 
 
 def main() -> None:

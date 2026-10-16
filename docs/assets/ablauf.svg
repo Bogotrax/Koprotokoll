@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" role="img" aria-labelledby="t d">
-  <title id="t">So funktioniert Notetaker</title>
+  <title id="t">So funktioniert Koprotokoll</title>
   <desc id="d">Quellen (Meeting-Bot, Browser-Aufnahme, Upload) werden lokal von ffmpeg, Parakeet, Sprechererkennung und einem lokalen LLM verarbeitet; Ergebnisse gehen an Weboberfläche, API, Webhooks, Gmail und MCP.</desc>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">

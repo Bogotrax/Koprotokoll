@@ -1,9 +1,9 @@
 """Kommandozeile.
 
-    python -m notetaker [serve] [--host 127.0.0.1] [--port 8000]   Server starten
-    python -m notetaker create-key NAME                            API-Schlüssel erzeugen
-    python -m notetaker bot-login                                  Google-Konto für den Bot anmelden
-    python -m notetaker mcp                                        MCP-Server (stdio) starten
+    python -m koprotokoll [serve] [--host 127.0.0.1] [--port 8000]   Server starten
+    python -m koprotokoll create-key NAME                            API-Schlüssel erzeugen
+    python -m koprotokoll bot-login                                  Google-Konto für den Bot anmelden
+    python -m koprotokoll mcp                                        MCP-Server (stdio) starten
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import logging
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="notetaker", description="Lokaler Meeting-Notetaker (Parakeet)")
+    parser = argparse.ArgumentParser(prog="koprotokoll", description="Lokaler Meeting-Koprotokoll (Parakeet)")
     sub = parser.add_subparsers(dest="cmd")
     serve = sub.add_parser("serve", help="Server starten (Standard)")
     for p in (parser, serve):
@@ -22,7 +22,7 @@ def main() -> None:
     key = sub.add_parser("create-key", help="API-Schlüssel erzeugen")
     key.add_argument("name")
     sub.add_parser("bot-login", help="Browser öffnen, um das Bot-Google-Konto anzumelden")
-    sub.add_parser("mcp", help="MCP-Server über stdio starten (nutzt NOTETAKER_URL / NOTETAKER_API_KEY)")
+    sub.add_parser("mcp", help="MCP-Server über stdio starten (nutzt KOPROTOKOLL_URL / KOPROTOKOLL_API_KEY)")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 

@@ -1,6 +1,6 @@
-# Mitmachen bei Notetaker
+# Mitmachen bei Koprotokoll
 
-Schön, dass du dabei sein willst! Notetaker soll ein Meeting-Assistent werden, dem man seine
+Schön, dass du dabei sein willst! Koprotokoll soll ein Meeting-Assistent werden, dem man seine
 Gespräche guten Gewissens anvertrauen kann: **deutsch, lokal, offen**. Dafür braucht es
 viele Hände – und nicht nur Programmierer.
 
@@ -8,22 +8,34 @@ viele Hände – und nicht nur Programmierer.
 
 | Du … | … dann zum Beispiel |
 |---|---|
-| nutzt Notetaker | Fehler und Wünsche als [Issue](https://github.com/enving/kontextlayer_kommunikation/issues) melden; erzählen, was in echten Meetings klappt und was nicht |
+| nutzt Koprotokoll | Fehler und Wünsche als [Issue](https://github.com/enving/Koprotokoll/issues) melden; erzählen, was in echten Meetings klappt und was nicht |
 | programmierst | ein Issue mit dem Label `good first issue` oder einen Punkt aus der [Roadmap im README](README.md) übernehmen |
 | kennst dich mit Sprache aus | Prompts für Zusammenfassungen verbessern, Heuristiken für deutsche Action Items schärfen |
 | schreibst gerne | Doku, Anleitungen für Windows/macOS, Erklärungen für Nicht-Techniker |
 | kennst Datenschutz/Recht | Hinweise zu DSGVO und Einwilligung prüfen und verbessern |
 | arbeitest mit Coding-Agenten | siehe [AGENTS.md](AGENTS.md) – Agenten sind ausdrücklich willkommen |
 
+## Labels
+
+| Label | Bedeutung |
+|---|---|
+| `agent-ready` | vollständig beschrieben, kann von Menschen oder Coding-Agenten direkt umgesetzt werden |
+| `good first issue` | klein und gut für den Einstieg |
+| `phase-1` … `phase-4` | Reihenfolge laut [Plan](docs/plan.md) |
+| `bot`, `kalender`, `email`, `spracherkennung`, `kodiktat`, `installation` | Themenbereich |
+
+Ablauf für Issue → Fork → Pull Request (für Menschen und Agenten gleich): siehe
+[AGENTS.md](AGENTS.md#mitmachen-als-agent-issue--fork--pull-request).
+
 ## Entwicklungsumgebung
 
 ```bash
-git clone https://github.com/enving/kontextlayer_kommunikation.git
-cd kontextlayer_kommunikation
+git clone https://github.com/enving/Koprotokoll.git
+cd Koprotokoll
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
 pytest                         # läuft ohne Modelle und ohne Internet
-python -m notetaker            # App unter http://127.0.0.1:8000
+python -m koprotokoll            # App unter http://127.0.0.1:8000
 ```
 
 Für den Browser-Test des Meeting-Bots einmalig `playwright install chromium`; ohne Browser
@@ -47,7 +59,7 @@ selbst arbeitest: `python scripts/download_models.py`.
 - **Python 3.11+**, Typannotationen, `from __future__ import annotations`.
 - **Wenig Abhängigkeiten:** Bevor du eine neue Bibliothek einführst, prüfe, ob die
   Standardbibliothek reicht (die Google-Anbindung kommt z. B. ohne Google-SDK aus).
-- **Frontend ohne Build-Schritt:** reines HTML/CSS/JavaScript in `notetaker/static/`.
+- **Frontend ohne Build-Schritt:** reines HTML/CSS/JavaScript in `koprotokoll/static/`.
   Nutzertexte nie per `innerHTML` einsetzen – den Helfer `h()` verwenden.
 - **Lokal zuerst:** Neue Funktionen müssen ohne Internet und ohne Cloud-Konto funktionieren
   oder sauber abschaltbar sein.
@@ -57,7 +69,7 @@ selbst arbeitest: `python scripts/download_models.py`.
 ## Tests
 
 - Schnelle Tests verwenden **Platzhalter-Engines** (`FakeTranscriber`, `FakeDiarizer`, `NoLLM`
-  in `tests/test_notetaker.py`) – sie brauchen keine Modelle.
+  in `tests/test_koprotokoll.py`) – sie brauchen keine Modelle.
 - Externe Dienste werden **nachgebaut**, nicht echt angesprochen (siehe `FakeGoogle` und den
   Webhook-Empfänger in `tests/test_integrations.py`).
 - Der Bot wird gegen eine **lokale WebRTC-Testseite** getestet (`tests/fixtures/webrtc_meeting.html`).

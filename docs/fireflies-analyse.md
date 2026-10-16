@@ -1,4 +1,4 @@
-# Fireflies.ai – Analyse mit REA und Abbildung im lokalen Nachbau
+# Fireflies.ai – Analyse mit REA und Abbildung in Koprotokoll
 
 ## Vorgehen
 
@@ -28,7 +28,7 @@ npx rea analyze-web-bundle http://127.0.0.1:9222 <targetId> --observation-ms 300
 Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Set:
 
 - *„Transcribe, summarize, search, and analyze all your team conversations.“*
-- Notetaker tritt Kalender-Meetings bei (Google Meet, Zoom, Teams) und nimmt auf
+- Der Fireflies-„Notetaker“ tritt Kalender-Meetings bei (Google Meet, Zoom, Teams) und nimmt auf
 - *„Transcribe audio and video files … (MP3, MP4, WAV, M4A)“*
 - *„Fireflies identifies different speakers …“* (Sprechererkennung)
 - *AI Summaries*: Überblick, Stichwörter, Gliederung, *Action Items*
@@ -42,7 +42,7 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 
 | Fireflies-Funktion | Lokaler Nachbau | Umsetzung |
 |---|---|---|
-| Notetaker-Bot tritt Meetings bei | ✔ Bot tritt Google Meet als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
+| Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
 | Kalender-Anbindung (Auto-Join) | ✔ Google Kalender | OAuth 2.0, Calendar API (nur lesen) |
 | Recap-E-Mail nach dem Meeting | ✔ über Gmail an sich selbst, optional an alle Teilnehmer | Gmail API (nur senden) |
 | API / Webhooks / MCP | ✔ REST mit API-Schlüsseln, OpenAPI, HMAC-signierte Webhooks, MCP-Server | FastAPI, `mcp` |

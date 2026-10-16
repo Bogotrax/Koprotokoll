@@ -6,10 +6,10 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from notetaker.app import create_app
-from notetaker.config import Settings
-from notetaker.speech import Turn, Word, build_utterances, tokens_to_words
-from notetaker.summarize import heuristic_summary, parse_json
+from koprotokoll.app import create_app
+from koprotokoll.config import Settings
+from koprotokoll.speech import Turn, Word, build_utterances, tokens_to_words
+from koprotokoll.summarize import heuristic_summary, parse_json
 
 SCRIPT = [
     (0.0, 0, "Guten Morgen zusammen, heute besprechen wir das Budget für das Projekt Atlas."),
@@ -159,7 +159,7 @@ def test_converts_compressed_upload(client, tmp_path):
 
 
 def test_index_served(client):
-    assert "Notetaker" in client.get("/").text
+    assert "Koprotokoll" in client.get("/").text
 
 
 def test_llm_summary_and_ask_via_openai_compatible_api(tmp_path):
@@ -167,7 +167,7 @@ def test_llm_summary_and_ask_via_openai_compatible_api(tmp_path):
     import threading
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
-    from notetaker.summarize import LLM, ask, summarize
+    from koprotokoll.summarize import LLM, ask, summarize
 
     calls = []
 

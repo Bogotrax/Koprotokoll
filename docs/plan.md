@@ -2,13 +2,14 @@
 
 [← zurück zum README](../README.md) · Stand: Oktober 2026
 
-Dieser Plan beschreibt, wie Notetaker vom „Meeting-Assistenten für Google Meet“ zu einem
+Dieser Plan beschreibt, wie Koprotokoll vom „Meeting-Assistenten für Google Meet“ zu einem
 lokalen Assistenten wird, der **mit den Programmen arbeitet, die Leute wirklich benutzen**:
 Outlook, Thunderbird, Nextcloud, Teams- und Zoom-Desktop-Apps, Telefonate. Außerdem soll er
-mit **[Dictate](https://github.com/enving/dictate)** zusammenwachsen, dem kleinen Diktierprogramm,
-das schon dasselbe Sprachmodell verwendet.
+mit **Kodiktat** zusammenwachsen – dem kleinen Diktierprogramm, das heute noch
+[Dictate](https://github.com/enving/dictate) bzw. [deutsche-transkription](https://github.com/enving/deutsche-transkription)
+heißt und schon dasselbe Sprachmodell verwendet. Beide gehören zur **Ko-Familie** (siehe unten).
 
-<p align="center"><img src="assets/zielbild.svg" alt="Zielbild: Begleit-App und Browser auf den Geräten, Notetaker-Server lokal, Anschlüsse an Kalender, E-Mail und Meeting-Plattformen" width="100%"></p>
+<p align="center"><img src="assets/zielbild.svg" alt="Zielbild: Begleit-App und Browser auf den Geräten, Koprotokoll-Server lokal, Anschlüsse an Kalender, E-Mail und Meeting-Plattformen" width="100%"></p>
 
 ## Inhalt
 
@@ -17,17 +18,18 @@ das schon dasselbe Sprachmodell verwendet.
 3. [Wie es im Alltag ablaufen soll](#3-wie-es-im-alltag-ablaufen-soll)
 4. [Arbeitspakete](#4-arbeitspakete)
 5. [Reihenfolge](#5-reihenfolge)
-6. [Offene Entscheidungen](#6-offene-entscheidungen)
+6. [Die Ko-Familie](#6-die-ko-familie)
+7. [Offene Entscheidungen](#7-offene-entscheidungen)
 
 ---
 
 ## 1. Ausgangslage
 
-**Notetaker kann heute:** Upload und Browser-Aufnahme, Transkription mit Parakeet v3,
+**Koprotokoll kann heute:** Upload und Browser-Aufnahme, Transkription mit Parakeet v3,
 Sprechererkennung, Zusammenfassung mit lokalem LLM, Suche, Export, einen Bot für **Google Meet**,
 **Google Kalender** (Auto-Join) und **Gmail** (Recap), REST-API, Webhooks und MCP.
 
-**Dictate kann heute:** Hotkey halten, sprechen, loslassen – der Text wird dort getippt, wo der
+**Kodiktat (heute Dictate / deutsche-transkription) kann heute:** Hotkey halten, sprechen, loslassen – der Text wird dort getippt, wo der
 Cursor steht. Es läuft auf Linux (X11 und Wayland), Windows und macOS, mit Tray-Symbol und
 Einstellungen (PyQt6). Für die lokale Erkennung nutzt es **Parakeet primeline**, eine
 **deutsche Nachschulung** von Parakeet v3 (int8, sherpa-onnx), mit einigen guten Lösungen:
@@ -45,16 +47,16 @@ leer erkannte Stücke in 20-s-Teilen erneut versuchen. Außerdem kann Dictate an
 | Meetings in Desktop-Apps | Viele nutzen die **Teams- oder Zoom-App**, nicht den Browser. Ein Bot ist dort oft nicht erlaubt oder unerwünscht. |
 | Teams, Zoom, Jitsi, BigBlueButton | Der Bot kann bisher nur Google Meet. In Deutschland sind **Teams**, **Jitsi** und **BigBlueButton** (Schulen, Verwaltung) sehr verbreitet. |
 | Deutsch-Qualität | Parakeet v3 macht bei kurzen deutschen Einwürfen Fehler („Danke“ → „Tá?“). Dictates deutsches Modell ist dafür besser geeignet. |
-| Zwei getrennte Projekte | Notetaker und Dictate laden jeweils ihr eigenes Modell und können nichts voneinander nutzen. |
+| Zwei getrennte Projekte | Koprotokoll und Kodiktat laden jeweils ihr eigenes Modell und können nichts voneinander nutzen. |
 
 ## 2. Zielbild
 
 Drei Bausteine (siehe Grafik oben):
 
-1. **Notetaker-Server** – läuft auf dem eigenen PC oder auf einem Rechner im Büro/zu Hause.
+1. **Koprotokoll-Server** – läuft auf dem eigenen PC oder auf einem Rechner im Büro/zu Hause.
    Er bündelt Spracherkennung, Sprecher, Zusammenfassung, Speicher, Kalender-Planer und Versand.
-   **Eine Spracherkennung für alle Geräte**, auch für Dictate.
-2. **Begleit-App** – entsteht aus **Dictate**. Sie bleibt das Diktier-Werkzeug und lernt dazu:
+   **Eine Spracherkennung für alle Geräte**, auch für Kodiktat.
+2. **Begleit-App** – das ist **Kodiktat**. Sie bleibt das Diktier-Werkzeug und lernt dazu:
    Meetings erkennen, Mikrofon **und Systemton** aufnehmen (für Teams-/Zoom-Apps, Softphones),
    an den Server schicken. Sie kann auch alleine (offline, ohne Server) diktieren wie bisher.
 3. **Anschlüsse** – Kalender (Outlook, CalDAV, ICS, Google), E-Mail (SMTP, Entwurf in
@@ -67,7 +69,7 @@ funktioniert alles außer den Cloud-Anschlüssen.
 
 | | **Bot** (heute: Google Meet) | **Begleit-App** (neu) |
 |---|---|---|
-| Wie | Ein eigener Browser tritt dem Meeting als Teilnehmer „Notetaker“ bei | Die App auf deinem Rechner nimmt Mikrofon + Systemton auf |
+| Wie | Ein eigener Browser tritt dem Meeting als Teilnehmer „Koprotokoll“ bei | Die App auf deinem Rechner nimmt Mikrofon + Systemton auf |
 | Für | Browser-Meetings: Meet, Teams (Web), Zoom (Web), Jitsi, BBB | **alles**, was über deinen Rechner läuft: Teams-/Zoom-App, Webex, Telefonate, Präsenzmeetings |
 | Du musst dabei sein | nein | ja (es läuft auf deinem Gerät) |
 | Sprecher | über Stimmen erkannt | über Stimmen; zusätzlich „ich“ (Mikrofon) vs. „die anderen“ (Systemton) getrennt |
@@ -97,30 +99,30 @@ Beide Wege landen in derselben Verarbeitung und Oberfläche.
 2. Ergebnis wie oben, ohne Kalender.
 
 **D – Diktieren wie bisher, aber mit dem Server**
-Dictate schickt die Aufnahme an den Notetaker-Server statt an Groq/OpenAI. Kein Modell auf dem
+Kodiktat schickt die Aufnahme an den Koprotokoll-Server statt an Groq/OpenAI. Kein Modell auf dem
 Laptop nötig, gleiche deutsche Erkennung überall.
 
 ## 4. Arbeitspakete
 
 Aufwand grob: **S** = bis 2 Tage, **M** = bis 1 Woche, **L** = mehr als 1 Woche.
 
-### AP1 – Gemeinsame Spracherkennung mit Dictate (S–M) ⭐ zuerst
+### AP1 – Gemeinsame Spracherkennung „Kostimme“ (S–M) ⭐ zuerst
 
-**Ziel:** Notetaker nutzt das deutsche Modell aus Dictate, und Dictate kann Notetaker als Server nutzen.
+**Ziel:** Koprotokoll nutzt das deutsche Modell aus Kodiktat, und Kodiktat kann Koprotokoll als Server nutzen.
 
 - Neue Engine `SherpaParakeetTranscriber` in `speech.py` für **parakeet-primeline** (sherpa-onnx,
-  feste Hugging-Face-Revision wie in Dictate). Wort-Zeitstempel kommen aus `result.timestamps`/`tokens`.
-- Dictates Erkenntnisse übernehmen: an Pausen teilen (≤ 90 s), Pegel anheben, leere Stücke in
-  20-s-Teilen wiederholen. Am besten als kleines **gemeinsames Paket** (z. B. `parakeet-de`), das
+  feste Hugging-Face-Revision wie in Kodiktat). Wort-Zeitstempel kommen aus `result.timestamps`/`tokens`.
+- Kodiktats Erkenntnisse übernehmen: an Pausen teilen (≤ 90 s), Pegel anheben, leere Stücke in
+  20-s-Teilen wiederholen. Am besten als kleines **gemeinsames Paket „Kostimme“** (`kostimme`), das
   beide Projekte einbinden – statt Code zu kopieren.
-- Einstellung `NOTETAKER_ASR_MODEL=parakeet-primeline` (Standard für Deutsch), v3 bleibt für
+- Einstellung `KOPROTOKOLL_ASR_MODEL=parakeet-primeline` (Standard für Deutsch), v3 bleibt für
   andere Sprachen.
 - Neuer Endpunkt **`POST /v1/audio/transcriptions`** (OpenAI-kompatibel, `response_format`
-  `text`/`json`/`verbose_json`) mit Notetaker-API-Schlüssel. Damit funktioniert Dictates
-  Heimserver-Anbieter ohne Änderung; in Dictate kommt ein eigener Eintrag „Notetaker“ dazu.
+  `text`/`json`/`verbose_json`) mit Koprotokoll-API-Schlüssel. Damit funktioniert Kodiktats
+  Heimserver-Anbieter ohne Änderung; in Kodiktat kommt ein eigener Eintrag „Koprotokoll“ dazu.
 
 **Fertig, wenn:** der Testdialog mit primeline weniger Fehler hat als mit v3 (Wortfehlerrate
-messen), Dictate über Notetaker diktiert, Tests für den neuen Endpunkt grün sind.
+messen), Kodiktat über Koprotokoll diktiert, Tests für den neuen Endpunkt grün sind.
 
 ### AP2 – Kalender-Anschlüsse für alle (M) ⭐
 
@@ -171,11 +173,11 @@ manuell geprüft ist.
 **Fertig, wenn:** Recap per SMTP und als Thunderbird-/Outlook-Entwurf kommt, Aufgaben als VTODO
 in Nextcloud erscheinen.
 
-### AP4 – Begleit-App aus Dictate (L) ⭐
+### AP4 – Kodiktat wird Begleit-App (L) ⭐
 
 **Ziel:** Meetings in Desktop-Apps und Telefonate aufnehmen – ohne Bot.
 
-- **Ausgangspunkt Dictate** (Tray, Hotkeys, Einstellungen, Audio, Windows/macOS/Linux schon da).
+- **Ausgangspunkt Kodiktat** (Tray, Hotkeys, Einstellungen, Audio, Windows/macOS/Linux schon da).
   Neuer Modus „Meeting aufnehmen“ neben „Diktieren“.
 - **Systemton aufnehmen**, getrennt vom Mikrofon (zwei Spuren → bessere Sprechertrennung):
   - Linux: PipeWire/PulseAudio-„Monitor“-Quelle
@@ -217,7 +219,7 @@ aus der Oberfläche** der Plattform auslesen, um Sprecher automatisch zu benenne
 ### AP7 – Einfache Installation (M)
 
 - **Docker-Image** (Server inkl. ffmpeg und Chromium) und `docker compose` mit Ollama.
-- **Installer** für Windows/macOS für die Begleit-App (aus Dictate), Server optional mitinstallierbar.
+- **Installer** für Windows/macOS für Kodiktat, Server optional mitinstallierbar.
 - Erststart-Assistent: Modell laden, Sprache wählen, Kalender/E-Mail verbinden.
 
 ### AP8 – Mehrere Nutzer im Büro (L, später)
@@ -229,7 +231,7 @@ aus der Oberfläche** der Plattform auslesen, um Sprecher automatisch zu benenne
 ## 5. Reihenfolge
 
 ```
-Phase 1  ─ AP1 Spracherkennung mit Dictate teilen     ─┐
+Phase 1  ─ AP1 Kostimme: Spracherkennung teilen        ─┐
 (Basis)    AP2 Kalender: ICS + CalDAV                  ├─ ohne Microsoft-Konto nutzbar
            AP3 E-Mail: SMTP + Thunderbird-/eml-Entwurf ─┘
 
@@ -246,18 +248,34 @@ Phase 4  ─ AP5 Zoom/Webex, AP8 Mehrbenutzer
 
 Warum so: **Phase 1** bringt sofort spürbaren Nutzen (bessere deutsche Erkennung, Kalender und
 Mail ohne Google) mit wenig Risiko. **Phase 2** öffnet die Outlook-Welt, in der die meisten
-Firmen arbeiten. **Phase 3** ist der größte Brocken, macht Notetaker aber unabhängig von
+Firmen arbeiten. **Phase 3** ist der größte Brocken, macht Koprotokoll aber unabhängig von
 Bot-Sperren und Plattformen.
 
 Jedes Arbeitspaket wird als eigenes GitHub-Issue angelegt und kann von Menschen oder
 Coding-Agenten (siehe [AGENTS.md](../AGENTS.md)) unabhängig umgesetzt werden.
 
-## 6. Offene Entscheidungen
+## 6. Die Ko-Familie
+
+<p align="center"><img src="assets/ko-familie.svg" alt="Die Ko-Familie: Koprotokoll, Kodiktat, Kostimme und Ideen wie Kopost und Kowissen" width="100%"></p>
+
+Alle Werkzeuge tragen die Vorsilbe **Ko** – wie *Kollege*, *kooperativ*, *Kontext*. So sieht man
+sofort, was zusammengehört. Gemeinsam gilt: lokal, deutsch, offen (MIT), dieselbe Spracherkennung
+(Kostimme), dieselbe Art von API-Schlüsseln und dieselben Regeln für Agenten (`AGENTS.md`).
+
+| Werkzeug | Aufgabe | Stand |
+|---|---|---|
+| **Koprotokoll** | Meetings mitschreiben, zusammenfassen, Aufgaben | dieses Repository |
+| **Kodiktat** | Diktieren per Hotkey, Begleit-App für Meetings | heute `dictate` / `deutsche-transkription` – umbenennen |
+| **Kostimme** | gemeinsame deutsche Spracherkennung (Paket + Server-Endpunkt) | geplant (AP1) |
+| Kopost | E-Mails vorsortieren, Antworten entwerfen | Idee |
+| Kowissen | Protokolle und Dokumente durchsuchen und befragen | Idee |
+
+## 7. Offene Entscheidungen
 
 | Frage | Optionen | Vorschlag |
 |---|---|---|
-| **Projektname** | „Notetaker“ behalten oder deutscher Name, z. B. **Mitschrift**, **Protokollant**, **Gesprächsnotiz**, **Sitzungsschreiber** | gemeinsam entscheiden; bei Umbenennung GitHub-Repo umbenennen (GitHub leitet alte Links weiter) und Doku/Grafiken anpassen |
-| **Dictate und Notetaker** | getrennte Repos mit gemeinsamem Paket `parakeet-de` – oder ein Monorepo | getrennt lassen, gemeinsames Paket; Dictate bleibt schlank und eigenständig nutzbar |
+| **Namen der Ko-Familie** | Kodiktat (für Dictate/deutsche-transkription), Kostimme (Spracherkennung); Ideen: Kopost, Kowissen | Kodiktat und Kostimme festlegen; Repos auf GitHub umbenennen (alte Links werden weitergeleitet) |
+| **Kodiktat und Koprotokoll** | getrennte Repos mit gemeinsamem Paket `kostimme` – oder ein Monorepo | getrennt lassen, gemeinsames Paket; Kodiktat bleibt schlank und eigenständig nutzbar |
 | **Standardmodell** | primeline (Deutsch) oder v3 (25 Sprachen) | primeline als Standard, v3 bei anderer Sprache automatisch bzw. per Einstellung |
 | **Dictate ist ein Fork** von `winidi/dictate` | Änderungen nur im eigenen Fork oder auch zurückgeben | allgemein nützliche Verbesserungen als Pull Request an das Original anbieten |
 | **Microsoft-Anbindung** | Graph braucht eine App-Registrierung in Entra ID | Anleitung schreiben; COM für klassisches Outlook ohne Registrierung zuerst |

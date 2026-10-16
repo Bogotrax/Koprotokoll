@@ -50,7 +50,7 @@ function speakerName(spk) {
 }
 
 // API-Schlüssel nur nötig, wenn die Oberfläche von einem anderen Rechner aus genutzt wird.
-const KEY_STORE = "notetaker_api_key";
+const KEY_STORE = "koprotokoll_api_key";
 function apiKey() { try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; } }
 function withKey(url) { const k = apiKey(); return k ? `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(k)}` : url; }
 
@@ -59,7 +59,7 @@ async function api(path, opts = {}, retry = true) {
   if (apiKey()) headers.Authorization = `Bearer ${apiKey()}`;
   const res = await fetch(path, { ...opts, headers });
   if (res.status === 401 && retry) {
-    const k = prompt("Dieser Server verlangt einen API-Schlüssel (nt_…):");
+    const k = prompt("Dieser Server verlangt einen API-Schlüssel (kp_…):");
     if (k) { try { localStorage.setItem(KEY_STORE, k.trim()); } catch { /* ignore */ } return api(path, opts, false); }
   }
   if (!res.ok) {

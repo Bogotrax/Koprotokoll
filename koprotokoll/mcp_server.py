@@ -1,9 +1,9 @@
 """MCP-Server: Meetings für KI-Assistenten (Claude, Cursor …) verfügbar machen.
 
-Spricht die REST-API eines laufenden Notetaker-Servers an:
-``NOTETAKER_URL`` (Standard http://127.0.0.1:8000) und optional ``NOTETAKER_API_KEY``.
+Spricht die REST-API eines laufenden Koprotokoll-Servers an:
+``KOPROTOKOLL_URL`` (Standard http://127.0.0.1:8000) und optional ``KOPROTOKOLL_API_KEY``.
 
-Beispiel (Claude Code):  claude mcp add notetaker -- python -m notetaker mcp
+Beispiel (Claude Code):  claude mcp add koprotokoll -- python -m koprotokoll mcp
 """
 
 from __future__ import annotations
@@ -17,16 +17,16 @@ from mcp.server.mcpserver import MCPServer
 
 from .summarize import fmt_time
 
-server = MCPServer("notetaker", instructions=(
+server = MCPServer("koprotokoll", instructions=(
     "Zugriff auf lokal aufgezeichnete Meetings: Suche, Transkripte, Zusammenfassungen, "
     "Action Items und einen Bot, der Online-Meetings als Teilnehmer beitritt."))
 
 
 def _call(method: str, path: str, body: dict | None = None):
-    base = os.environ.get("NOTETAKER_URL", "http://127.0.0.1:8000").rstrip("/")
+    base = os.environ.get("KOPROTOKOLL_URL", "http://127.0.0.1:8000").rstrip("/")
     headers = {"Content-Type": "application/json"}
-    if os.environ.get("NOTETAKER_API_KEY"):
-        headers["Authorization"] = f"Bearer {os.environ['NOTETAKER_API_KEY']}"
+    if os.environ.get("KOPROTOKOLL_API_KEY"):
+        headers["Authorization"] = f"Bearer {os.environ['KOPROTOKOLL_API_KEY']}"
     req = urllib.request.Request(base + path, method=method, headers=headers,
                                  data=json.dumps(body).encode() if body is not None else None)
     with urllib.request.urlopen(req, timeout=60) as r:
@@ -72,7 +72,7 @@ def ask_meeting(meeting_id: int, question: str) -> str:
 
 @server.tool()
 def send_bot(meeting_url: str, title: str = "") -> dict:
-    """Den Notetaker-Bot jetzt in ein Online-Meeting (z. B. Google Meet) schicken."""
+    """Den Koprotokoll-Bot jetzt in ein Online-Meeting (z. B. Google Meet) schicken."""
     return _call("POST", "/api/bots", {"meeting_url": meeting_url, "title": title or None})
 
 

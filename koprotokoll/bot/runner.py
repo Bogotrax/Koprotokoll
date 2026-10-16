@@ -136,7 +136,7 @@ class BotSession:
         s = self.m.s
         adapter = ADAPTERS[bot["platform"]]()
         self.audio_path.unlink(missing_ok=True)
-        with tempfile.TemporaryDirectory(prefix="notetaker-bot-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="koprotokoll-bot-") as tmp:
             profile = Path(tmp) / "profile"
             if s.bot_profile_dir.exists():  # angemeldetes Bot-Konto mitnehmen
                 shutil.copytree(s.bot_profile_dir, profile, ignore=shutil.ignore_patterns("Singleton*", "*.lock"))
