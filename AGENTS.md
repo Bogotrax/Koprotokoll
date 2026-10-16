@@ -20,7 +20,8 @@ Copilot Coding Agent, Jules), genauso wie für Menschen mit Agent im Terminal.
    [`agent-ready`](https://github.com/enving/Koprotokoll/issues?q=is%3Aissue+is%3Aopen+label%3Aagent-ready)
    sind so beschrieben, dass ein Agent sie ohne Rückfragen umsetzen kann (Kontext, Aufgabe,
    „Fertig, wenn“, betroffene Dateien). `good first issue` = klein und gut zum Einstieg.
-   Den Gesamtzusammenhang liefert [docs/plan.md](docs/plan.md).
+   Reihenfolge und Abhängigkeiten zeigt das Übersichts-Issue
+   [Fahrplan #21](https://github.com/enving/Koprotokoll/issues/21), den Gesamtzusammenhang [docs/plan.md](docs/plan.md).
 2. **Prüfen und beanspruchen.** Ist das Issue schon zugewiesen oder hat jemand in den letzten
    7 Tagen „übernehme ich“ kommentiert, ein anderes wählen. Sonst einen Kommentar hinterlassen:
    > 🤖 Übernehme ich. Agent: *Name/Modell*, verantwortlich: @*github-name*. Plan: *1–3 Sätze*.

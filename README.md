@@ -160,7 +160,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 
 Wie das umgesetzt werden soll – Outlook, Thunderbird, Nextcloud, Desktop-Meetings und das
 Zusammenspiel mit Kodiktat – steht im
-**[Plan](docs/plan.md)**. Ideen und Wünsche gerne als [Issue](https://github.com/enving/Koprotokoll/issues).
+**[Plan](docs/plan.md)**, die einzelnen Aufgaben im **[Fahrplan](https://github.com/enving/Koprotokoll/issues/21)**. Ideen und Wünsche gerne als [Issue](https://github.com/enving/Koprotokoll/issues).
 
 ## 🧬 Die Ko-Familie
 
