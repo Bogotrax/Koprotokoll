@@ -234,7 +234,14 @@ class Jitsi(Adapter):
     def leave(self, page) -> None:
         btn = page.get_by_role("button", name=self.LEAVE).first
         if _visible(btn, 1000):
-            btn.click()
+            try:
+                btn.scroll_into_view_if_needed(timeout=2000)
+                btn.click(timeout=3000)
+            except Exception:  # noqa: BLE001 – Fallback: per JavaScript klicken
+                try:
+                    btn.evaluate("el => el.click()")
+                except Exception:  # noqa: BLE001
+                    pass
 
     @staticmethod
     def _join_url(url: str, bot_name: str) -> str:
