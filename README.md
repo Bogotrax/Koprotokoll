@@ -173,7 +173,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [ ] Kalender aus **Outlook**, **CalDAV/ICS** (Nextcloud, iCloud, Thunderbird …)
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
 - [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
-- [ ] Meeting-Bot für **Jitsi**, **BigBlueButton**, **Microsoft Teams** und **Zoom**
+- [ ] Meeting-Bot für **BigBlueButton**, **Microsoft Teams** und **Zoom**
 - [ ] **Live-Transkript** während des Meetings
 - [ ] Sprecher **wiedererkennen** über Meetings hinweg (Stimmprofile)
 - [ ] **Docker**-Image und Installer für Windows/macOS
