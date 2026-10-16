@@ -1,0 +1,20 @@
+name: 💡 Idee oder Wunsch
+description: Neue Funktion oder Verbesserung vorschlagen
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem soll gelöst werden?
+    validations:
+      required: true
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Wie könnte die Lösung aussehen?
+  - type: checkboxes
+    id: mithelfen
+    attributes:
+      label: Mithelfen
+      options:
+        - label: Ich würde das gerne selbst umsetzen (oder mit meinem Coding-Agenten).

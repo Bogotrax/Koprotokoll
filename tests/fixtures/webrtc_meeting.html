@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Test-Meeting</title></head>
+<body>
+<p>Simuliertes Meeting: ein entfernter Teilnehmer sendet Ton über WebRTC.</p>
+<script>
+// "Remote"-Teilnehmer (pc1) sendet Ton an "uns" (pc2). Der Bot greift die Spur an pc2 ab.
+(async () => {
+  const ctx = new AudioContext();
+  const out = ctx.createMediaStreamDestination();
+  const params = new URLSearchParams(location.search);
+  if (params.get("audio")) {
+    const buf = await ctx.decodeAudioData(await (await fetch(params.get("audio"))).arrayBuffer());
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(out);
+    src.start(0.5);
+  } else {
+    const osc = ctx.createOscillator();
+    osc.frequency.value = 440;
+    osc.connect(out);
+    osc.start();
+  }
+  const pc1 = new RTCPeerConnection(), pc2 = new RTCPeerConnection();
+  pc1.onicecandidate = (e) => e.candidate && pc2.addIceCandidate(e.candidate);
+  pc2.onicecandidate = (e) => e.candidate && pc1.addIceCandidate(e.candidate);
+  pc2.ontrack = (e) => { const a = new Audio(); a.srcObject = e.streams[0]; a.play().catch(() => {}); };
+  out.stream.getAudioTracks().forEach((t) => pc1.addTrack(t, out.stream));
+  await pc1.setLocalDescription(await pc1.createOffer());
+  await pc2.setRemoteDescription(pc1.localDescription);
+  await pc2.setLocalDescription(await pc2.createAnswer());
+  await pc1.setRemoteDescription(pc2.localDescription);
+  document.title = "connected";
+})();
+</script>
+</body>
+</html>

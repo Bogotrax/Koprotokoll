@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-labelledby="t d">
+  <title id="t">Koprotokoll – Meeting-Assistent auf Deutsch, lokal, Open Source</title>
+  <desc id="d">Eine Schallwelle wird zu Transkriptzeilen mit Sprechern, Zusammenfassung und Aufgaben.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1033"/>
+      <stop offset="0.55" stop-color="#2d1866"/>
+      <stop offset="1" stop-color="#4b23b8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.85" cy="0.2" r="0.6">
+      <stop offset="0" stop-color="#9b7bff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#9b7bff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="400" rx="24" fill="url(#bg)"/>
+  <rect width="1280" height="400" rx="24" fill="url(#glow)"/>
+
+  <!-- Titel -->
+  <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif" fill="#ffffff">
+    <circle cx="86" cy="104" r="14" fill="#9b7bff"/>
+    <circle cx="86" cy="104" r="24" fill="none" stroke="#9b7bff" stroke-opacity="0.45" stroke-width="3"/>
+    <text x="124" y="118" font-size="46" font-weight="800" letter-spacing="-1"><tspan fill="#b9a3ff">Ko</tspan>protokoll</text>
+    <text x="420" y="116" font-size="15" font-weight="600" fill="#c8bcf5">Teil der Ko-Familie</text>
+    <text x="72" y="180" font-size="30" font-weight="600" fill="#e9e2ff">Dein Meeting-Assistent.</text>
+    <text x="72" y="222" font-size="30" font-weight="600" fill="#e9e2ff">Auf Deutsch. Lokal. Open Source.</text>
+    <text x="72" y="268" font-size="18" fill="#c8bcf5">Transkript · Sprecher · Zusammenfassung · Aufgaben · Suche · Meeting-Bot</text>
+    <g font-size="15" font-weight="600">
+      <rect x="72" y="300" width="172" height="36" rx="18" fill="#ffffff" fill-opacity="0.12"/>
+      <text x="92" y="323" fill="#ffffff">NVIDIA Parakeet</text>
+      <rect x="256" y="300" width="176" height="36" rx="18" fill="#ffffff" fill-opacity="0.12"/>
+      <text x="276" y="323" fill="#ffffff">keine Cloud nötig</text>
+      <rect x="444" y="300" width="140" height="36" rx="18" fill="#ffffff" fill-opacity="0.12"/>
+      <text x="464" y="323" fill="#ffffff">MIT-Lizenz</text>
+    </g>
+  </g>
+
+  <!-- Schallwelle -->
+  <g transform="translate(700,196)" stroke="#b9a3ff" stroke-width="7" stroke-linecap="round">
+    <line x1="0" y1="-10" x2="0" y2="10" stroke-opacity="0.34"/>
+    <line x1="18" y1="-24" x2="18" y2="24" stroke-opacity="0.43"/>
+    <line x1="36" y1="-44" x2="36" y2="44" stroke-opacity="0.52"/>
+    <line x1="54" y1="-18" x2="54" y2="18" stroke-opacity="0.61"/>
+    <line x1="72" y1="-60" x2="72" y2="60" stroke-opacity="0.70"/>
+    <line x1="90" y1="-34" x2="90" y2="34" stroke-opacity="0.79"/>
+    <line x1="108" y1="-50" x2="108" y2="50" stroke-opacity="0.88"/>
+    <line x1="126" y1="-14" x2="126" y2="14" stroke-opacity="0.97"/>
+    <line x1="144" y1="-28" x2="144" y2="28" stroke-opacity="1.06"/>
+  </g>
+  <path d="M868 196 h28" stroke="#b9a3ff" stroke-width="3" stroke-linecap="round"/>
+  <path d="M890 186 l12 10 -12 10" fill="none" stroke="#b9a3ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Transkript-Karte -->
+  <g font-family="Inter, 'Segoe UI', system-ui, sans-serif">
+    <rect x="920" y="66" width="300" height="268" rx="18" fill="#ffffff"/>
+    <text x="944" y="102" font-size="14" font-weight="700" fill="#1d1d2b">Projekt Atlas · Weekly</text>
+    <text x="944" y="122" font-size="11" fill="#6b6b80">00:41 · 2 Sprecher</text>
+
+    <circle cx="950" cy="148" r="5" fill="#6c3ce1"/>
+    <text x="962" y="152" font-size="11" font-weight="700" fill="#6c3ce1">Anna</text>
+    <rect x="944" y="160" width="248" height="7" rx="3.5" fill="#e4e4ee"/>
+    <rect x="944" y="173" width="190" height="7" rx="3.5" fill="#e4e4ee"/>
+
+    <circle cx="950" cy="198" r="5" fill="#0e8f7e"/>
+    <text x="962" y="202" font-size="11" font-weight="700" fill="#0e8f7e">Ben</text>
+    <rect x="944" y="210" width="230" height="7" rx="3.5" fill="#e4e4ee"/>
+
+    <rect x="944" y="234" width="252" height="80" rx="10" fill="#efe9fd"/>
+    <text x="958" y="256" font-size="12" font-weight="700" fill="#6c3ce1">Action Items</text>
+    <rect x="958" y="268" width="10" height="10" rx="2" fill="none" stroke="#6c3ce1" stroke-width="1.5"/>
+    <text x="976" y="277" font-size="11" fill="#1d1d2b">Datenschutz klären – Fr</text>
+    <rect x="958" y="288" width="10" height="10" rx="2" fill="none" stroke="#6c3ce1" stroke-width="1.5"/>
+    <text x="976" y="297" font-size="11" fill="#1d1d2b">Kosten an alle – Mi</text>
+  </g>
+</svg>

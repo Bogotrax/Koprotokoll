@@ -1,0 +1,31 @@
+name: 🤖 Agenten-Aufgabe
+description: Klar umrissene Aufgabe, die ein Mensch oder Coding-Agent ohne Rückfragen umsetzen kann
+labels: ["agent-ready"]
+body:
+  - type: textarea
+    id: kontext
+    attributes:
+      label: Kontext
+      description: Warum ist das nötig? Verweis auf den Plan (docs/plan.md) oder ein anderes Issue.
+    validations:
+      required: true
+  - type: textarea
+    id: aufgabe
+    attributes:
+      label: Aufgabe
+      description: Was genau soll gebaut oder geändert werden?
+    validations:
+      required: true
+  - type: textarea
+    id: fertig
+    attributes:
+      label: Fertig, wenn
+      description: Prüfbare Kriterien, z. B. Tests, Verhalten in der Oberfläche, Doku.
+      placeholder: "- [ ] …"
+    validations:
+      required: true
+  - type: textarea
+    id: hinweise
+    attributes:
+      label: Hinweise
+      description: Betroffene Dateien, Vorbilder im Code, Fallstricke, was nicht dazugehört.

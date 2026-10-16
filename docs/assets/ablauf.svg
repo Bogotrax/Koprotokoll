@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" role="img" aria-labelledby="t d">
+  <title id="t">So funktioniert Koprotokoll</title>
+  <desc id="d">Quellen (Meeting-Bot, Browser-Aufnahme, Upload) werden lokal von ffmpeg, Parakeet, Sprechererkennung und einem lokalen LLM verarbeitet; Ergebnisse gehen an Weboberfläche, API, Webhooks, Gmail und MCP.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#6c3ce1"/>
+    </marker>
+    <style>
+      .box { fill: #ffffff; stroke: #d9d3f2; stroke-width: 1.5; }
+      .core { fill: #efe9fd; stroke: #b9a3ff; stroke-width: 1.5; }
+      .h { font: 700 16px Inter, 'Segoe UI', system-ui, sans-serif; fill: #1d1d2b; }
+      .s { font: 400 13px Inter, 'Segoe UI', system-ui, sans-serif; fill: #6b6b80; }
+      .lab { font: 700 12px Inter, 'Segoe UI', system-ui, sans-serif; fill: #6c3ce1; letter-spacing: .08em; }
+      .ln { stroke: #6c3ce1; stroke-width: 2; fill: none; marker-end: url(#a); }
+    </style>
+  </defs>
+  <rect width="1200" height="560" rx="20" fill="#f7f7fb"/>
+
+  <!-- Quellen -->
+  <text x="40" y="52" class="lab">QUELLEN</text>
+  <rect x="40" y="70" width="230" height="84" rx="14" class="box"/>
+  <text x="60" y="104" class="h">Meeting-Bot</text>
+  <text x="60" y="128" class="s">tritt Google Meet bei</text>
+  <rect x="40" y="170" width="230" height="84" rx="14" class="box"/>
+  <text x="60" y="204" class="h">Browser-Aufnahme</text>
+  <text x="60" y="228" class="s">Mikrofon oder Tab-Ton</text>
+  <rect x="40" y="270" width="230" height="84" rx="14" class="box"/>
+  <text x="60" y="304" class="h">Datei-Upload</text>
+  <text x="60" y="328" class="s">MP3 · MP4 · WAV · M4A …</text>
+  <rect x="40" y="370" width="230" height="84" rx="14" class="box"/>
+  <text x="60" y="404" class="h">Google Kalender</text>
+  <text x="60" y="428" class="s">schickt den Bot automatisch</text>
+  <path d="M40 412 H 22 V 112 H 36" class="ln" stroke-dasharray="5 5"/>
+
+  <!-- Lokale Verarbeitung -->
+  <rect x="330" y="36" width="520" height="488" rx="18" fill="#ffffff" stroke="#6c3ce1" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="354" y="68" class="lab">ALLES AUF DEINEM RECHNER</text>
+
+  <rect x="360" y="90" width="460" height="64" rx="12" class="core"/>
+  <text x="384" y="118" class="h">1 · Audio aufbereiten</text>
+  <text x="384" y="140" class="s">ffmpeg → 16 kHz Mono</text>
+
+  <rect x="360" y="178" width="460" height="64" rx="12" class="core"/>
+  <text x="384" y="206" class="h">2 · Transkribieren mit NVIDIA Parakeet</text>
+  <text x="384" y="228" class="s">25 Sprachen inkl. Deutsch · läuft auf der CPU</text>
+
+  <rect x="360" y="266" width="460" height="64" rx="12" class="core"/>
+  <text x="384" y="294" class="h">3 · Sprecher erkennen</text>
+  <text x="384" y="316" class="s">pyannote-Segmentierung + Stimmprofile (sherpa-onnx)</text>
+
+  <rect x="360" y="354" width="460" height="64" rx="12" class="core"/>
+  <text x="384" y="382" class="h">4 · Zusammenfassen</text>
+  <text x="384" y="404" class="s">lokales LLM (Ollama …) oder Offline-Heuristik</text>
+
+  <rect x="360" y="442" width="460" height="64" rx="12" class="core"/>
+  <text x="384" y="470" class="h">5 · Speichern &amp; durchsuchbar machen</text>
+  <text x="384" y="492" class="s">SQLite + Volltextsuche</text>
+
+  <path d="M590 154 V 174" class="ln"/>
+  <path d="M590 242 V 262" class="ln"/>
+  <path d="M590 330 V 350" class="ln"/>
+  <path d="M590 418 V 438" class="ln"/>
+
+  <path d="M270 112 C 310 112, 310 122, 356 122" class="ln"/>
+  <path d="M270 212 C 310 212, 310 122, 356 122" class="ln"/>
+  <path d="M270 312 C 310 312, 310 122, 356 122" class="ln"/>
+
+  <!-- Ergebnisse -->
+  <text x="910" y="52" class="lab">ERGEBNISSE</text>
+  <rect x="910" y="70" width="250" height="70" rx="14" class="box"/>
+  <text x="930" y="100" class="h">Weboberfläche</text>
+  <text x="930" y="122" class="s">Transkript, Player, Suche</text>
+  <rect x="910" y="156" width="250" height="70" rx="14" class="box"/>
+  <text x="930" y="186" class="h">REST-API &amp; Webhooks</text>
+  <text x="930" y="208" class="s">n8n, Zapier, eigene Tools</text>
+  <rect x="910" y="242" width="250" height="70" rx="14" class="box"/>
+  <text x="930" y="272" class="h">Gmail-Recap</text>
+  <text x="930" y="294" class="s">Zusammenfassung per E-Mail</text>
+  <rect x="910" y="328" width="250" height="70" rx="14" class="box"/>
+  <text x="930" y="358" class="h">MCP-Server</text>
+  <text x="930" y="380" class="s">Claude, Cursor &amp; Co.</text>
+  <rect x="910" y="414" width="250" height="70" rx="14" class="box"/>
+  <text x="930" y="444" class="h">Export</text>
+  <text x="930" y="466" class="s">Markdown · TXT · SRT · JSON</text>
+
+  <path d="M820 474 C 866 474, 866 105, 906 105" class="ln"/>
+  <path d="M820 474 C 866 474, 866 191, 906 191" class="ln"/>
+  <path d="M820 474 C 866 474, 866 277, 906 277" class="ln"/>
+  <path d="M820 474 C 866 474, 866 363, 906 363" class="ln"/>
+  <path d="M820 474 C 866 474, 866 449, 906 449" class="ln"/>
+</svg>
