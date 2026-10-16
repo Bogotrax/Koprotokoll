@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jitsi Test Stub</title>
+<style>
+  body { font-family: sans-serif; margin: 2em; }
+  .hidden { display: none; }
+  button { padding: 0.5em 1em; margin: 0.25em; }
+</style>
+</head>
+<body>
+
+<!-- Prejoin screen -->
+<div id="prejoin">
+  <h2>Ready to join?</h2>
+  <input type="text" id="premeeting-name-input" placeholder="Enter your name" aria-label="Input your name">
+  <button id="mic-toggle" aria-label="Mute microphone">Mute microphone</button>
+  <button id="cam-toggle" aria-label="Turn off camera">Turn off camera</button>
+  <button id="join-btn" role="button">Join meeting</button>
+</div>
+
+<!-- In-meeting view -->
+<div id="meeting" class="hidden">
+  <div id="toolbar">
+    <button id="participants-btn" role="button" aria-label="Toggle participants pane">1</button>
+    <button id="leave-btn" role="button" aria-label="Leave">Leave</button>
+  </div>
+</div>
+
+<!-- Left meeting view -->
+<div id="left" class="hidden">
+  <p>You have left the meeting</p>
+</div>
+
+<!-- Denied view (simulates password-protected room) -->
+<div id="denied" class="hidden">
+  <p>This conference is password protected</p>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("denied") === "1") {
+    document.getElementById("prejoin").classList.add("hidden");
+    document.getElementById("denied").classList.remove("hidden");
+  }
+
+  document.getElementById("join-btn").addEventListener("click", () => {
+    document.getElementById("prejoin").classList.add("hidden");
+    document.getElementById("meeting").classList.remove("hidden");
+  });
+
+  document.getElementById("leave-btn").addEventListener("click", () => {
+    document.getElementById("meeting").classList.add("hidden");
+    document.getElementById("left").classList.remove("hidden");
+  });
+
+  // Expose participant count for testing
+  window.__setParticipants = (n) => {
+    document.getElementById("participants-btn").textContent = String(n);
+  };
+</script>
+</body>
+</html>

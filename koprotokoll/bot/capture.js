@@ -41,6 +41,66 @@
     if (window.webkitRTCPeerConnection) window.webkitRTCPeerConnection = Wrapped;
   }
 
+  // Fallback: Audio direkt aus HTMLMediaElement-Elementen abgreifen.
+  // Jitsi (und manche andere Plattformen) spielen Remote-Audio über <audio>-Elemente
+  // mit srcObject oder src statt über AudioContext.
+  const srcObjectDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'srcObject');
+  if (srcObjectDesc && srcObjectDesc.set) {
+    Object.defineProperty(HTMLMediaElement.prototype, 'srcObject', {
+      configurable: true,
+      get: srcObjectDesc.get ? function() { return srcObjectDesc.get.call(this); } : undefined,
+      set: function(stream) {
+        try {
+          if (stream && stream.getAudioTracks) {
+            stream.getAudioTracks().forEach((t) => addTrack(t));
+          }
+        } catch (e) { /* ignore */ }
+        return srcObjectDesc.set.call(this, stream);
+      }
+    });
+  }
+
+  // Zusätzlich: src-Setter abgreifen (für URL.createObjectURL(MediaStream)-Ansätze).
+  const srcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+  if (srcDesc && srcDesc.set) {
+    Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+      configurable: true,
+      get: srcDesc.get ? function() { return srcDesc.get.call(this); } : undefined,
+      set: function(val) {
+        // blob:-URLs können MediaStreams sein – AudioTracks aus dem Element abgreifen
+        try {
+          if (this.srcObject && this.srcObject.getAudioTracks) {
+            this.srcObject.getAudioTracks().forEach((t) => addTrack(t));
+          }
+        } catch (e) { /* ignore */ }
+        return srcDesc.set.call(this, val);
+      }
+    });
+  }
+
+  // Zusätzlich: play() abgreifen – falls srcObject nach play() gesetzt wird.
+  const origPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function(...args) {
+    try {
+      if (this.srcObject && this.srcObject.getAudioTracks) {
+        this.srcObject.getAudioTracks().forEach((t) => addTrack(t));
+      }
+    } catch (e) { /* ignore */ }
+    return origPlay.apply(this, args);
+  };
+
+  // Zusätzlich: AudioContext.createMediaStreamSource abgreifen (für Plattformen, die
+  // den Web-Audio-Kontext nutzen).
+  const origCreateMediaStreamSource = AudioContext.prototype.createMediaStreamSource;
+  AudioContext.prototype.createMediaStreamSource = function(stream) {
+    try {
+      if (stream && stream.getAudioTracks) {
+        stream.getAudioTracks().forEach((t) => addTrack(t));
+      }
+    } catch (e) { /* ignore */ }
+    return origCreateMediaStreamSource.call(this, stream);
+  };
+
   function toBase64(bytes) {
     let bin = "";
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));

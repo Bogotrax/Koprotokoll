@@ -46,6 +46,13 @@ class Settings:
     bot_max_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_MAX_MINUTES", "180")))
     bot_admit_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_ADMIT_MINUTES", "10")))
 
+    # Eigene Jitsi-Instanzen (kommagetrennte Hostnames) zusätzlich zu meet.jit.si.
+    jitsi_hosts: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            h.strip().lower() for h in _env("KOPROTOKOLL_JITSI_HOSTS", "").split(",") if h.strip()
+        )
+    )
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "koprotokoll.sqlite3"

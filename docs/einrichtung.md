@@ -33,9 +33,10 @@ normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
 - Läuft der Bot auf einem Server ohne Bildschirm und wird erkannt, hilft
   `KOPROTOKOLL_BOT_HEADLESS=0` zusammen mit `xvfb-run python -m koprotokoll`.
 
-Unterstützt wird zurzeit **Google Meet**. Zoom- und Teams-Links werden erkannt, der Beitritt
-ist aber noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den Ton einer beliebigen
-Webseite auf (z. B. Webinar).
+Unterstützt wird zurzeit **Google Meet** und **Jitsi** (meet.jit.si sowie eigene Instanzen
+über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames). Zoom- und Teams-Links werden
+erkannt, der Beitritt ist aber noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
+Ton einer beliebigen Webseite auf (z. B. Webinar).
 
 > Hinweis: Aufzeichnungen nur mit Einverständnis der Teilnehmenden. Der Bot tritt sichtbar
 > unter seinem Namen bei.
@@ -75,3 +76,4 @@ Zusammenfassung an dich (optional auch an alle Termin-Teilnehmer).
 | `KOPROTOKOLL_BOT_SILENCE_MINUTES` | `10` | Meeting verlassen nach so langer Stille |
 | `KOPROTOKOLL_BOT_MAX_MINUTES` | `180` | Höchstdauer einer Aufnahme |
 | `KOPROTOKOLL_BOT_ADMIT_MINUTES` | `10` | Wartezeit auf Einlass |
+| `KOPROTOKOLL_JITSI_HOSTS` | – | Eigene Jitsi-Instanzen (kommagetrennte Hostnames) |

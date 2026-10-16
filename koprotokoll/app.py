@@ -96,7 +96,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     from .bot.runner import BotManager
 
     bots = BotManager(s, db, pipeline, events, tick_seconds=5.0 if background else 3600)
-    calendar = CalendarScheduler(db, google, s.calendar_poll_seconds)
+    calendar = CalendarScheduler(db, google, s.calendar_poll_seconds, s.jitsi_hosts)
     if background:
         calendar.start()
 
@@ -235,7 +235,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     @api.post("/api/bots", status_code=201, tags=["bots"])
     def create_bot(b: BotIn):
         url = b.meeting_url.strip()
-        platform = b.platform or detect_platform(url)
+        platform = b.platform or detect_platform(url, s.jitsi_hosts)
         if not url.startswith(("http://", "https://")):
             raise HTTPException(400, "meeting_url muss mit http:// oder https:// beginnen")
         if platform is None:

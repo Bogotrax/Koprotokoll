@@ -24,8 +24,10 @@ def _ts(value: dict | None) -> float | None:
 
 
 class CalendarScheduler:
-    def __init__(self, db: Database, google: GoogleClient, poll_seconds: float = 60):
+    def __init__(self, db: Database, google: GoogleClient, poll_seconds: float = 60,
+                 jitsi_hosts: tuple[str, ...] = ()):
         self.db, self.google, self.poll = db, google, poll_seconds
+        self.jitsi_hosts = jitsi_hosts
         self._stop = threading.Event()
         self.last_sync: dict = {}
 
@@ -58,7 +60,7 @@ class CalendarScheduler:
             me = next((a for a in attendees if a.get("self")), None)
             if me and me.get("responseStatus") == "declined":
                 continue
-            found = find_meeting_url(event)
+            found = find_meeting_url(event, self.jitsi_hosts)
             if not found or found[1] not in SUPPORTED:
                 continue
             url, platform = found

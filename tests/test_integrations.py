@@ -54,6 +54,40 @@ def test_find_meeting_url_prefers_conference_data():
     assert find_meeting_url({"summary": "Mittag"}) is None
 
 
+def test_detect_platform_jitsi():
+    assert detect_platform("https://meet.jit.si/MeinRaum") == "jitsi"
+    assert detect_platform("https://meet.jit.si/Team-Sync?password=x") == "jitsi"
+    # Eigene Instanzen werden nur mit Konfiguration erkannt
+    assert detect_platform("https://jitsi.example.org/Meeting") is None
+    assert detect_platform("https://jitsi.example.org/Meeting", jitsi_hosts=["jitsi.example.org"]) == "jitsi"
+    # meet.jit.si bleibt auch mit eigener Host-Liste erkannt
+    assert detect_platform("https://meet.jit.si/Raum", jitsi_hosts=["jitsi.example.org"]) == "jitsi"
+
+
+def test_find_meeting_url_jitsi():
+    assert find_meeting_url({"description": "Termin: https://meet.jit.si/Planung"}) == (
+        "https://meet.jit.si/Planung", "jitsi")
+    assert find_meeting_url(
+        {"location": "https://jitsi.example.org/Review"},
+        jitsi_hosts=["jitsi.example.org"]) == ("https://jitsi.example.org/Review", "jitsi")
+    # Ohne Konfiguration wird der eigene Host nicht erkannt
+    assert find_meeting_url({"location": "https://jitsi.example.org/Review"}) is None
+
+
+def test_jitsi_join_url():
+    from koprotokoll.bot.platforms import Jitsi
+    url = Jitsi._join_url("https://meet.jit.si/Raum", "Koprotokoll")
+    assert "config.defaultLanguage=" in url
+    assert "config.startWithAudioMuted=true" in url
+    assert "config.startWithVideoMuted=true" in url
+    assert "userInfo.displayName=" in url
+    assert "Koprotokoll" in url
+    # Bestehender Fragment wird erweitert, nicht ersetzt
+    url2 = Jitsi._join_url("https://meet.jit.si/Raum#config.prejoinConfig.enabled=true", "Bot")
+    assert "config.prejoinConfig.enabled=true" in url2
+    assert "config.defaultLanguage=" in url2
+
+
 # --------------------------------------------------------------------------- API-Schlüssel
 def test_remote_requests_need_api_key(client):
     assert client.get("/api/meetings").status_code == 200  # lokal ohne Schlüssel
@@ -182,6 +216,72 @@ def test_bot_records_webrtc_meeting(tmp_path):
             assert audio.exists()
             c.delete(f"/api/meetings/{m['id']}")
             assert not audio.exists()
+    finally:
+        web.shutdown()
+
+
+def test_jitsi_adapter_join_and_leave(tmp_path):
+    """Jitsi-Adapter gegen einen lokalen Stub: Prejoin → Meeting → Verlassen."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import Jitsi
+
+        url = f"http://127.0.0.1:{web.server_port}/jitsi_stub.html"
+        statuses = []
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Jitsi()
+
+            # Beitritt: Prejoin ausfüllen und Join klicken
+            adapter.join(page, url, "Koprotokoll", 10, statuses.append)
+            assert not adapter.ended(page)
+
+            # Allein-Erkennung: Stub zeigt Teilnehmerzahl 1
+            assert adapter.alone(page)
+
+            # Teilnehmerzahl auf 2 setzen → nicht mehr allein
+            page.evaluate("window.__setParticipants(2)")
+            assert not adapter.alone(page)
+
+            # Verlassen
+            adapter.leave(page)
+            assert adapter.ended(page)
+            browser.close()
+    finally:
+        web.shutdown()
+
+
+def test_jitsi_adapter_denied(tmp_path):
+    """Jitsi-Adapter: Passwort-geschützter Raum wird als abgelehnt erkannt."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import BotError, Jitsi
+
+        url = f"http://127.0.0.1:{web.server_port}/jitsi_stub.html?denied=1"
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Jitsi()
+            with pytest.raises(BotError, match="abgelehnt"):
+                adapter.join(page, url, "Koprotokoll", 5, lambda s: None)
+            browser.close()
     finally:
         web.shutdown()
 
