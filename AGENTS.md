@@ -89,6 +89,9 @@ CSS-Variablen in `:root` (heller und dunkler Modus). Prüfen auf Desktop- und Ha
 
 ## Gute Einstiegsaufgaben
 
+Der Gesamtplan mit Arbeitspaketen, Reihenfolge und „Fertig, wenn“-Kriterien steht in
+[docs/plan.md](docs/plan.md). Kleinere Einstiege:
+
 - Bot-Adapter für **Microsoft Teams** (Web-Client, Gastzugang)
 - **CalDAV/ICS**-Kalender als Alternative zu Google (`scheduler.py` verallgemeinern)
 - **Live-Transkript** während der Bot-Aufnahme (Stücke aus `runner.py` laufend transkribieren)

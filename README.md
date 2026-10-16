@@ -16,6 +16,7 @@
   <a href="docs/einrichtung.md">Einrichtung</a> ·
   <a href="docs/api.md">API</a> ·
   <a href="docs/architektur.md">Architektur</a> ·
+  <a href="docs/plan.md">Plan</a> ·
   <a href="CONTRIBUTING.md">Mitmachen</a> ·
   <a href="AGENTS.md">Für Coding-Agenten</a>
 </p>
@@ -147,14 +148,19 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
 - [x] Meeting-Bot für Google Meet, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
-- [ ] Meeting-Bot für **Microsoft Teams** und **Zoom**
-- [ ] Kalender über **CalDAV/ICS** (Outlook, Nextcloud, …)
+- [ ] Deutsches Modell **Parakeet primeline** und Server für **Dictate** (`/v1/audio/transcriptions`)
+- [ ] Kalender aus **Outlook**, **CalDAV/ICS** (Nextcloud, iCloud, Thunderbird …)
+- [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
+- [ ] **Begleit-App** (aus Dictate) für Teams-/Zoom-Apps und Telefonate
+- [ ] Meeting-Bot für **Jitsi**, **BigBlueButton**, **Microsoft Teams** und **Zoom**
 - [ ] **Live-Transkript** während des Meetings
 - [ ] Sprecher **wiedererkennen** über Meetings hinweg (Stimmprofile)
 - [ ] **Docker**-Image und Installer für Windows/macOS
 - [ ] Mehrbenutzer-Betrieb mit Teams und Freigaben
 
-Ideen und Wünsche gerne als [Issue](https://github.com/enving/kontextlayer_kommunikation/issues).
+Wie das umgesetzt werden soll – Outlook, Thunderbird, Nextcloud, Desktop-Meetings und das
+Zusammenspiel mit [Dictate](https://github.com/enving/dictate) – steht im
+**[Plan](docs/plan.md)**. Ideen und Wünsche gerne als [Issue](https://github.com/enving/kontextlayer_kommunikation/issues).
 
 ## 🤝 Mitmachen
 
