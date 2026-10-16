@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .audio import SAMPLE_RATE, load_wav, to_wav16k
 from .db import Database
+from .events import EventBus
 from .speech import Diarizer, Transcriber, build_utterances
 from .summarize import LLM, summarize
 
@@ -20,8 +21,8 @@ STEPS = {"converting": (0.0, 0.05), "transcribing": (0.05, 0.7), "diarizing": (0
 
 class Pipeline:
     def __init__(self, db: Database, media_dir: Path, transcriber: Transcriber,
-                 diarizer: Diarizer | None, llm: LLM | None):
-        self.db, self.media_dir = db, media_dir
+                 diarizer: Diarizer | None, llm: LLM | None, events: EventBus | None = None):
+        self.db, self.media_dir, self.events = db, media_dir, events
         self.transcriber, self.diarizer, self.llm = transcriber, diarizer, llm
         self._queue: queue.Queue[int] = queue.Queue()
         self._thread = threading.Thread(target=self._run, name="pipeline", daemon=True)
@@ -41,6 +42,7 @@ class Pipeline:
             except Exception as e:  # noqa: BLE001
                 log.exception("Verarbeitung von Meeting %s fehlgeschlagen", meeting_id)
                 self.db.update_meeting(meeting_id, status="error", error=str(e))
+                self._emit("meeting.failed", meeting_id)
             finally:
                 self._queue.task_done()
 
@@ -88,9 +90,23 @@ class Pipeline:
         if summary.get("title") and meeting["title"] == meeting.get("source_name"):
             fields["title"] = summary["title"]
         self.db.update_meeting(meeting_id, **fields)
+        self._emit("meeting.completed", meeting_id)
+
+    def _emit(self, event: str, meeting_id: int) -> None:
+        if self.events is None:
+            return
+        m = self.db.get_meeting(meeting_id)
+        if m is not None:
+            self.events.emit(event, meeting_payload(m))
 
     def resummarize(self, meeting_id: int) -> dict:
         meeting = self.db.get_meeting(meeting_id)
         summary = summarize(self.db.get_segments(meeting_id), meeting["speakers"], self.llm)
         self.db.update_meeting(meeting_id, summary=summary)
         return summary
+
+
+def meeting_payload(m: dict) -> dict:
+    """Öffentliche Darstellung eines Meetings für Webhooks und E-Mails."""
+    return {k: m.get(k) for k in ("id", "title", "created_at", "duration", "status", "error",
+                                    "speakers", "summary", "meta")}

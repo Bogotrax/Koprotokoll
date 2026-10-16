@@ -7,7 +7,12 @@ const STATUS = {
 };
 const COLORS = ["--s1", "--s2", "--s3", "--s4", "--s5", "--s6"];
 
-const state = { meetings: [], current: null, segEls: [], pollTimer: null };
+const state = { meetings: [], bots: [], current: null, segEls: [], pollTimer: null };
+const ACTIVE_BOT = ["scheduled", "joining", "waiting_admit", "recording", "stopping"];
+const BOT_STATUS = {
+  scheduled: "geplant", joining: "tritt bei", waiting_admit: "wartet auf Einlass", recording: "nimmt auf",
+  stopping: "beendet", completed: "fertig", stopped: "gestoppt", failed: "fehlgeschlagen", cancelled: "abgesagt",
+};
 
 // ---------------------------------------------------------------- Helfer
 function h(tag, attrs = {}, ...children) {
@@ -44,8 +49,19 @@ function speakerName(spk) {
   return state.current?.speakers?.[spk] || spk;
 }
 
-async function api(path, opts = {}) {
-  const res = await fetch(path, opts);
+// API-Schlüssel nur nötig, wenn die Oberfläche von einem anderen Rechner aus genutzt wird.
+const KEY_STORE = "notetaker_api_key";
+function apiKey() { try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; } }
+function withKey(url) { const k = apiKey(); return k ? `${url}${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(k)}` : url; }
+
+async function api(path, opts = {}, retry = true) {
+  const headers = { ...(opts.headers || {}) };
+  if (apiKey()) headers.Authorization = `Bearer ${apiKey()}`;
+  const res = await fetch(path, { ...opts, headers });
+  if (res.status === 401 && retry) {
+    const k = prompt("Dieser Server verlangt einen API-Schlüssel (nt_…):");
+    if (k) { try { localStorage.setItem(KEY_STORE, k.trim()); } catch { /* ignore */ } return api(path, opts, false); }
+  }
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).detail || msg; } catch { /* ignore */ }
@@ -86,8 +102,10 @@ async function loadMeetings() {
     }, h("div", { class: "t" }, m.title), h("div", { class: "s" }, sub));
   }));
   const busy = state.meetings.some((m) => !["done", "error"].includes(m.status));
+  await loadBots();
+  const botsBusy = state.bots.some((b) => ACTIVE_BOT.includes(b.status));
   clearTimeout(state.pollTimer);
-  if (busy) state.pollTimer = setTimeout(refresh, 1500);
+  if (busy || botsBusy) state.pollTimer = setTimeout(refresh, botsBusy && !busy ? 3000 : 1500);
 }
 
 async function refresh() {
@@ -105,8 +123,8 @@ async function openMeeting(id, { keepTab = false, seekTo = null } = {}) {
   const m = await api(`/api/meetings/${id}`);
   const changedMeeting = state.current?.id !== id;
   state.current = m;
-  $("#empty").hidden = true;
-  $("#meeting").hidden = false;
+  showView("meeting");
+  if (location.hash !== `#meeting=${id}`) history.replaceState(null, "", `#meeting=${id}`);
   $("#m-title").textContent = m.title;
   const created = new Date(m.created_at * 1000).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
   $("#m-meta").textContent = [created, m.duration ? fmt(m.duration) : null,
@@ -121,7 +139,7 @@ async function openMeeting(id, { keepTab = false, seekTo = null } = {}) {
       ? `Fehler: ${m.error}` : `${STATUS[m.status] || m.status} … ${Math.round(m.progress * 100)} %`;
   }
   const player = $("#player");
-  if (changedMeeting) player.src = `/api/meetings/${id}/audio`;
+  if (changedMeeting) player.src = withKey(`/api/meetings/${id}/audio`);
 
   renderSummary();
   renderTranscript();
@@ -270,7 +288,7 @@ $("#m-title").addEventListener("blur", async () => {
 });
 
 $("#m-export").addEventListener("change", (e) => {
-  if (e.target.value && state.current) window.location = `/api/meetings/${state.current.id}/export?format=${e.target.value}`;
+  if (e.target.value && state.current) window.location = withKey(`/api/meetings/${state.current.id}/export?format=${e.target.value}`);
   e.target.value = "";
 });
 
@@ -279,8 +297,8 @@ $("#m-delete").addEventListener("click", async () => {
   await api(`/api/meetings/${state.current.id}`, { method: "DELETE" });
   state.current = null;
   $("#player").removeAttribute("src");
-  $("#meeting").hidden = true;
-  $("#empty").hidden = false;
+  showView("empty");
+  history.replaceState(null, "", "#");
   await loadMeetings();
 });
 
@@ -420,6 +438,159 @@ $("#rec-stop").addEventListener("click", () => {
 });
 $("#dlg-record").addEventListener("close", () => { if (rec.recorder) { rec.recorder.onstop = null; rec.recorder.stop(); cleanupRecording(); } });
 
+// ---------------------------------------------------------- Ansichten
+function showView(name) {
+  for (const v of ["empty", "meeting", "integrations"]) $(`#${v}`).hidden = v !== name;
+  $("#btn-integrations").classList.toggle("active", name === "integrations");
+  if (name !== "meeting") document.querySelectorAll(".m-item").forEach((el) => el.classList.remove("active"));
+}
+
+// ---------------------------------------------------------- Bots
+async function loadBots() {
+  try { state.bots = await api("/api/bots"); } catch { state.bots = []; }
+  const live = state.bots.filter((b) => ACTIVE_BOT.includes(b.status));
+  $("#bot-live").replaceChildren(...live.map((b) => h("div", { class: "live" },
+    h("span", { class: `badge ${b.status}` }, BOT_STATUS[b.status] || b.status),
+    h("span", { class: "t", title: b.meeting_url }, b.title),
+    h("button", { title: "Bot stoppen", onclick: () => stopBot(b.id) }, "■"))));
+  if (!$("#integrations").hidden) renderBots();
+}
+
+function renderBots() {
+  $("#bot-list").replaceChildren(...state.bots.slice(0, 15).map((b) => h("li", {},
+    h("span", { class: `badge ${b.status}` }, BOT_STATUS[b.status] || b.status),
+    h("span", { class: "grow" }, h("b", {}, b.title), " ",
+      h("span", { class: "muted small" }, new Date(b.join_at * 1000).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })),
+      b.error ? h("div", { class: "muted small" }, b.error) : null),
+    b.meeting_id ? h("a", { class: "ts", href: `#meeting=${b.meeting_id}` }, "Öffnen") : null,
+    ACTIVE_BOT.includes(b.status) ? h("button", { onclick: () => stopBot(b.id) }, b.status === "scheduled" ? "Absagen" : "Stoppen") : null)));
+}
+
+async function sendBot(url, title, joinAt) {
+  const body = { meeting_url: url.trim(), title: title || null };
+  if (joinAt) body.join_at = joinAt;
+  await api("/api/bots", jsonOpts("POST", body));
+  await loadMeetings();
+}
+
+async function stopBot(id) {
+  await api(`/api/bots/${id}`, { method: "DELETE" });
+  await loadMeetings();
+}
+
+$("#bot-quick").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const url = $("#bot-quick-url").value.trim();
+  if (!url) return;
+  try { await sendBot(url); $("#bot-quick-url").value = ""; } catch (err) { alert(err.message); }
+});
+
+$("#bot-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const at = $("#bot-at").value ? new Date($("#bot-at").value).getTime() / 1000 : null;
+  try { await sendBot($("#bot-url").value, $("#bot-title").value, at); e.target.reset(); } catch (err) { alert(err.message); }
+});
+
+// ---------------------------------------------------------- Integrationen
+async function openIntegrations() {
+  showView("integrations");
+  if (location.hash.split("?")[0] !== "#integrations") history.replaceState(null, "", "#integrations");
+  const err = new URLSearchParams(location.hash.split("?")[1] || "").get("google_error");
+  if (err) alert(`Google-Verbindung abgebrochen: ${err}`);
+  renderBots();
+  await Promise.all([renderGoogle(), renderKeys(), renderHooks()]);
+}
+
+async function renderGoogle() {
+  const g = await api("/api/integrations/google");
+  const box = $("#google-box");
+  if (!g.configured) {
+    const id = h("input", { placeholder: "Client-ID" }), secret = h("input", { placeholder: "Client-Secret", type: "password" });
+    box.replaceChildren(
+      h("p", { class: "muted small" }, "1. In der Google Cloud Console Calendar- und Gmail-API aktivieren. 2. OAuth-Client vom Typ „Webanwendung“ anlegen mit Weiterleitungs-URI:"),
+      h("pre", {}, g.redirect_uri),
+      h("div", { class: "stack" }, id, secret, h("button", { class: "primary", onclick: async () => {
+        await api("/api/integrations/google/client", jsonOpts("PUT", { client_id: id.value, client_secret: secret.value }));
+        renderGoogle();
+      } }, "Speichern")));
+    return;
+  }
+  if (!g.connected) {
+    box.replaceChildren(
+      h("p", { class: "muted small" }, "Verbinde dein Google-Konto: Der Bot tritt dann automatisch deinen Kalender-Meetings bei, und nach jedem Meeting kommt die Zusammenfassung per Gmail."),
+      h("button", { class: "primary", onclick: () => { window.location = withKey("/api/integrations/google/connect"); } }, "Mit Google verbinden"));
+    return;
+  }
+  const toggle = (key, label) => {
+    const cb = h("input", { type: "checkbox" });
+    cb.checked = !!g.settings[key];
+    cb.addEventListener("change", () => api("/api/integrations/google/settings", jsonOpts("PATCH", { [key]: cb.checked })));
+    return h("label", { class: "switch" }, cb, label);
+  };
+  const sync = g.last_sync?.at ? `Letzter Abgleich: ${new Date(g.last_sync.at * 1000).toLocaleTimeString("de-DE")}${g.last_sync.error ? ` – Fehler: ${g.last_sync.error}` : ""}` : "";
+  box.replaceChildren(
+    h("p", {}, "Verbunden als ", h("b", {}, g.email || "?")),
+    toggle("auto_join", "Bot tritt Kalender-Meetings mit Meet-Link automatisch bei"),
+    toggle("send_recap", "Zusammenfassung nach dem Meeting per Gmail an mich"),
+    toggle("recap_to_attendees", "… auch an alle Teilnehmer des Termins"),
+    sync ? h("p", { class: "muted small" }, sync) : null,
+    h("div", { class: "row" },
+      h("button", { onclick: async (e) => {
+        e.target.disabled = true;
+        try { const r = await api("/api/integrations/google/sync", { method: "POST" }); alert(`${r.created.length} neue(r) Bot(s) eingeplant.`); await loadMeetings(); }
+        catch (err) { alert(err.message); }
+        e.target.disabled = false; renderGoogle();
+      } }, "Kalender jetzt prüfen"),
+      h("button", { class: "danger", onclick: async () => {
+        if (!confirm("Google-Verbindung trennen?")) return;
+        await api("/api/integrations/google", { method: "DELETE" }); renderGoogle();
+      } }, "Trennen")));
+}
+
+async function renderKeys() {
+  const keys = await api("/api/keys");
+  $("#key-list").replaceChildren(...keys.map((k) => h("li", {},
+    h("span", { class: "grow" }, h("b", {}, k.name), " ", h("code", {}, `${k.prefix}…`),
+      h("div", { class: "muted small" }, k.last_used ? `zuletzt genutzt ${new Date(k.last_used * 1000).toLocaleString("de-DE")}` : "noch nie genutzt")),
+    h("button", { onclick: async () => { if (confirm(`Schlüssel „${k.name}“ widerrufen?`)) { await api(`/api/keys/${k.id}`, { method: "DELETE" }); renderKeys(); } } }, "Widerrufen"))));
+}
+
+$("#key-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const k = await api("/api/keys", jsonOpts("POST", { name: $("#key-name").value }));
+  $("#key-new").replaceChildren(h("div", { class: "secret" }, "Neuer Schlüssel (wird nur jetzt angezeigt): ", h("code", {}, k.key)));
+  e.target.reset();
+  renderKeys();
+});
+
+async function renderHooks() {
+  const hooks = await api("/api/webhooks");
+  $("#hook-list").replaceChildren(...hooks.map((w) => h("li", {},
+    h("span", { class: "grow" }, h("code", {}, w.url), h("div", { class: "muted small" }, w.events.join(", "))),
+    h("button", { onclick: async () => { const r = await api(`/api/webhooks/${w.id}/test`, { method: "POST" }); alert(r.delivered ? "Test zugestellt." : "Zustellung fehlgeschlagen."); } }, "Testen"),
+    h("button", { onclick: async () => { await api(`/api/webhooks/${w.id}`, { method: "DELETE" }); renderHooks(); } }, "✕"))));
+}
+
+$("#hook-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const w = await api("/api/webhooks", jsonOpts("POST", { url: $("#hook-url").value, events: [$("#hook-events").value] }));
+    $("#hook-new").replaceChildren(h("div", { class: "secret" }, "Signatur-Secret (wird nur jetzt angezeigt): ", h("code", {}, w.secret)));
+    e.target.reset();
+    renderHooks();
+  } catch (err) { alert(err.message); }
+});
+
+$("#btn-integrations").addEventListener("click", openIntegrations);
+
+async function route() {
+  const hash = location.hash;
+  const m = hash.match(/^#meeting=(\d+)/);
+  if (m) await openMeeting(+m[1]).catch(() => showView("empty"));
+  else if (hash.startsWith("#integrations")) await openIntegrations();
+}
+window.addEventListener("hashchange", route);
+
 // ---------------------------------------------------------- Start
 (async () => {
   try {
@@ -428,4 +599,5 @@ $("#dlg-record").addEventListener("close", () => { if (rec.recorder) { rec.recor
     $("#engine").title = `ASR: ${st.asr_model}\nSprechererkennung: ${st.diarization ? "an" : "aus"}\nLLM: ${st.llm.available ? st.llm.model : "nicht erreichbar (" + st.llm.url + ")"}`;
   } catch { /* Server-Status optional */ }
   await loadMeetings();
+  await route();
 })();

@@ -17,9 +17,15 @@
       <button id="btn-record" class="primary">● Aufnehmen</button>
       <button id="btn-upload">⇪ Hochladen</button>
     </div>
+    <form id="bot-quick" class="row" title="Bot als Teilnehmer in ein Online-Meeting schicken">
+      <input id="bot-quick-url" placeholder="Meet-Link einfügen → Bot schicken" autocomplete="off">
+      <button class="primary" aria-label="Bot schicken">➜</button>
+    </form>
     <input id="global-search" type="search" placeholder="Alle Meetings durchsuchen …" autocomplete="off">
     <div id="search-results" hidden></div>
+    <div id="bot-live"></div>
     <nav id="meeting-list" aria-label="Meetings"></nav>
+    <button id="btn-integrations" class="nav-link">⚙ Integrationen &amp; API</button>
   </aside>
 
   <main id="main">
@@ -28,6 +34,59 @@
       <p>Lade eine Audio- oder Videodatei hoch (MP3, MP4, WAV, M4A …) oder nimm direkt im Browser auf.
         Transkription mit NVIDIA Parakeet, Sprechererkennung, Zusammenfassung, Action Items und Suche –
         alles auf diesem Rechner.</p>
+    </section>
+
+    <section id="integrations" hidden>
+      <h1>Integrationen &amp; API</h1>
+      <div class="grid2">
+        <div>
+          <div class="card">
+            <h3>Bot als Teilnehmer schicken</h3>
+            <p class="muted small">Der Bot tritt dem Meeting als „Notetaker“ bei, nimmt den Ton aller Teilnehmer auf
+              und erstellt danach Transkript und Zusammenfassung. Unterstützt: Google Meet (sowie beliebige Webseiten
+              mit Plattform „web“).</p>
+            <form id="bot-form" class="stack">
+              <input id="bot-url" placeholder="https://meet.google.com/abc-defg-hij" required>
+              <div class="row"><input id="bot-title" placeholder="Titel (optional)">
+                <input id="bot-at" type="datetime-local" title="Startzeit (leer = sofort)"></div>
+              <button class="primary">Bot schicken</button>
+            </form>
+            <ul id="bot-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>Google Kalender &amp; Gmail</h3>
+            <div id="google-box"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>API-Schlüssel</h3>
+            <p class="muted small">Für Zugriffe von anderen Rechnern, Skripten, Zapier/n8n oder dem MCP-Server:
+              <code>Authorization: Bearer nt_…</code>. Doku: <a href="/docs" target="_blank">/docs</a></p>
+            <form id="key-form" class="row"><input id="key-name" placeholder="Name, z. B. n8n" required>
+              <button>Erzeugen</button></form>
+            <div id="key-new"></div>
+            <ul id="key-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>Webhooks</h3>
+            <p class="muted small">POST bei <code>meeting.completed</code>, <code>meeting.failed</code>,
+              <code>bot.status</code>; signiert mit <code>X-Notetaker-Signature</code> (HMAC-SHA256).</p>
+            <form id="hook-form" class="row"><input id="hook-url" placeholder="https://…/webhook" required>
+              <select id="hook-events"><option value="*">alle Ereignisse</option>
+                <option value="meeting.completed">meeting.completed</option>
+                <option value="bot.status">bot.status</option></select>
+              <button>Hinzufügen</button></form>
+            <div id="hook-new"></div>
+            <ul id="hook-list" class="list"></ul>
+          </div>
+          <div class="card">
+            <h3>MCP (Claude &amp; Co.)</h3>
+            <p class="muted small">Meetings direkt im KI-Assistenten durchsuchen und zusammenfassen:</p>
+            <pre>claude mcp add notetaker -- python -m notetaker mcp</pre>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section id="meeting" hidden>

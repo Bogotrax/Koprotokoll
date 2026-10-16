@@ -98,3 +98,21 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; ma
   .meeting-head { flex-direction: column; }
   .meeting-head h1 { font-size: 20px; }
 }
+
+.nav-link { border: none; background: none; text-align: left; color: var(--muted); padding: 8px 10px; }
+.nav-link:hover, .nav-link.active { background: var(--accent-soft); color: var(--accent); }
+.stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.small { font-size: 13px; }
+pre, code { font: 12px/1.4 ui-monospace, monospace; }
+pre { background: var(--bg); padding: 8px 10px; border-radius: 8px; overflow-x: auto; }
+.secret { background: var(--hl); padding: 8px 10px; border-radius: 8px; word-break: break-all; margin: 8px 0; font-size: 13px; }
+.badge { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--line); white-space: nowrap; }
+.badge.recording { background: #e03131; color: #fff; }
+.badge.waiting_admit, .badge.joining, .badge.scheduled { background: #f59f00; color: #fff; }
+.badge.completed { background: var(--s2); color: #fff; }
+.badge.failed { background: var(--danger); color: #fff; }
+.live { padding: 8px 10px; border-radius: 8px; background: var(--accent-soft); font-size: 13px; display: flex; gap: 8px; align-items: center; }
+.live .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bot-live { display: flex; flex-direction: column; gap: 4px; }
+.switch { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 14px; }
+.switch input { width: auto; }

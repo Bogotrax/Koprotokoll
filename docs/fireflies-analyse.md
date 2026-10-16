@@ -42,7 +42,11 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 
 | Fireflies-Funktion | Lokaler Nachbau | Umsetzung |
 |---|---|---|
-| Notetaker-Bot tritt Meetings bei | Browser-Aufnahme: Mikrofon **oder** Mikrofon + Tab-/Bildschirmton | `MediaRecorder` + `getDisplayMedia` |
+| Notetaker-Bot tritt Meetings bei | ✔ Bot tritt Google Meet als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
+| Kalender-Anbindung (Auto-Join) | ✔ Google Kalender | OAuth 2.0, Calendar API (nur lesen) |
+| Recap-E-Mail nach dem Meeting | ✔ über Gmail an sich selbst, optional an alle Teilnehmer | Gmail API (nur senden) |
+| API / Webhooks / MCP | ✔ REST mit API-Schlüsseln, OpenAPI, HMAC-signierte Webhooks, MCP-Server | FastAPI, `mcp` |
+| Aufnahme ohne Bot | Browser-Aufnahme: Mikrofon **oder** Mikrofon + Tab-/Bildschirmton | `MediaRecorder` + `getDisplayMedia` |
 | Datei-Upload (MP3, MP4, WAV, M4A …) | ✔ | ffmpeg → 16 kHz Mono |
 | Transkription | ✔ NVIDIA **Parakeet TDT 0.6B v3** (25 Sprachen inkl. Deutsch), CPU | `onnx-asr` + Silero-VAD |
 | Sprechererkennung | ✔ automatisch oder feste Sprecheranzahl, Namen umbenennbar | `sherpa-onnx` (pyannote-Segmentierung + ERes2Net-Embeddings) |
@@ -53,4 +57,5 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 | Player mit synchronem Transkript | ✔ Klick auf Zeitstempel springt, aktuelle Zeile wird hervorgehoben | `<audio>` + `timeupdate` |
 | Redeanteile (Talk-Time) | ✔ | aus Segmentdauern |
 | Download | ✔ Markdown, TXT, SRT, JSON | `/api/meetings/{id}/export` |
-| Kalender-Bot, CRM/Slack-Integrationen, Teams/Freigaben, Sentiment | ✘ bewusst nicht Teil der Grundfunktionen | – |
+| Bot für Zoom und Microsoft Teams | ✘ Links werden erkannt, Beitritt noch nicht umgesetzt | – |
+| CRM/Slack-Integrationen, Team-Freigaben, Sentiment | ✘ nicht Teil der Grundfunktionen (über Webhooks/API anbindbar) | – |
