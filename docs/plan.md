@@ -201,7 +201,8 @@ vollständig aufgenommen und mit „ich“/„andere“ getrennt verarbeitet wer
 
 Reihenfolge nach Verbreitung und Machbarkeit:
 
-1. **Jitsi** – offen, Beitritt ohne Konto, einfach. Eigene Instanzen per Einstellung.
+1. **Jitsi** – ✔ erledigt: Beitritt ohne Konto, eigene Instanzen per Einstellung
+   (`KOPROTOKOLL_JITSI_HOSTS`). Audio-Aufnahme über `HTMLMediaElement`-Hooks in `capture.js`.
 2. **BigBlueButton** – offen, „Nur zuhören“ beim Beitritt wählen.
 3. **Microsoft Teams (Web)** – Gastbeitritt „Im Browser fortfahren“, Name setzen, Lobby abwarten.
    Klappt nur, wenn die Organisation anonymen Beitritt erlaubt; sonst Begleit-App.

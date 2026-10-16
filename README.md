@@ -73,7 +73,7 @@ Kanzleien, Behörden oder einfach vertrauliche Team-Meetings ist das oft ein No-
 <td width="50%" valign="top">
 
 **🎙️ Aufnehmen**
-- **Meeting-Bot** tritt Google Meet als Teilnehmer bei – per Link oder automatisch aus dem Kalender
+- **Meeting-Bot** tritt Google Meet und Jitsi als Teilnehmer bei – per Link oder automatisch aus dem Kalender
 - Aufnahme im Browser: Mikrofon oder Ton eines Tabs (Zoom, Teams, Meet im Browser)
 - Upload von MP3, MP4, WAV, M4A, WebM, OGG, FLAC …
 
@@ -167,7 +167,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 ## 🗺️ Roadmap
 
 - [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
-- [x] Meeting-Bot für Google Meet, Google Kalender & Gmail
+- [x] Meeting-Bot für Google Meet und Jitsi, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [ ] Kalender aus **Outlook**, **CalDAV/ICS** (Nextcloud, iCloud, Thunderbird …)
