@@ -11,6 +11,18 @@ braucht, um in diesem Repository sofort produktiv und sicher zu arbeiten.
 → Zusammenfassung mit lokalem LLM → Suche, Export, API, Webhooks, MCP.
 **Leitprinzipien: deutsch, lokal, offen.** Kein Feature darf eine Cloud voraussetzen.
 
+**Das Ziel ist ein Nachbau von Fireflies.ai** – Funktion für Funktion, aber als lokale
+Open-Source-Software auf Deutsch. Wenn unklar ist, wie sich etwas verhalten soll, ist die Frage:
+*Wie macht es Fireflies, und wie geht das lokal und datensparsam?* Die Gegenüberstellung
+„Fireflies-Funktion → Stand in Koprotokoll“ steht in [docs/fireflies-analyse.md](docs/fireflies-analyse.md);
+wer eine Funktion fertigstellt, trägt sie dort mit ✔ ein.
+
+**Grenzen beim Nachbauen:** Funktionen und Abläufe dürfen nachgebaut werden. Nicht übernehmen:
+Quellcode, Texte, Logos, Grafiken oder das Design von Fireflies; keine Zugangsdaten oder
+Bezahlfunktionen von Fireflies umgehen; keine Inhalte hinter einem Login abgreifen. Zur Analyse
+öffentlich sichtbarer Funktionen kann [REA](https://github.com/morluto/rea) genutzt werden
+(siehe Vorgehen in der Analyse).
+
 ## Mitmachen als Agent: Issue → Fork → Pull Request
 
 Dieser Ablauf gilt für Agenten, die selbstständig arbeiten (z. B. Claude Code im Web, Codex,

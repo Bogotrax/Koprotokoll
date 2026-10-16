@@ -1,8 +1,10 @@
 # Mitmachen bei Koprotokoll
 
 Schön, dass du dabei sein willst! Koprotokoll soll ein Meeting-Assistent werden, dem man seine
-Gespräche guten Gewissens anvertrauen kann: **deutsch, lokal, offen**. Dafür braucht es
-viele Hände – und nicht nur Programmierer.
+Gespräche guten Gewissens anvertrauen kann: **deutsch, lokal, offen**. Unser Ziel ist, den
+Funktionsumfang von **Fireflies.ai nachzubauen** – als Open-Source-Alternative, die auf dem
+eigenen Rechner läuft (Stand: [docs/fireflies-analyse.md](docs/fireflies-analyse.md)).
+Dafür braucht es viele Hände – und nicht nur Programmierer.
 
 ## Wie du helfen kannst
 

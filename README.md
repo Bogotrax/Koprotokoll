@@ -23,10 +23,31 @@
 
 ---
 
+> **Kurz gesagt: Wir bauen [Fireflies.ai](https://fireflies.ai/) nach – als Open Source, lokal und auf Deutsch.**
+
 **Koprotokoll** schreibt deine Meetings mit, erkennt, wer spricht, fasst zusammen und sammelt die
-Aufgaben ein – so wie [Fireflies.ai](https://fireflies.ai/), Otter oder tl;dv. Der Unterschied:
+Aufgaben ein – so wie Fireflies.ai, Otter oder tl;dv. Der Unterschied:
 **Alles läuft auf deinem eigenen Rechner, auf Deutsch, und der Code ist offen.**
 Kein Audio verlässt dein Gerät, kein Abo, keine Datenweitergabe an US-Clouds.
+
+## 🎯 Ziel: Fireflies.ai als offene, lokale Alternative
+
+Fireflies.ai ist unser Vorbild. Ziel ist, **den Funktionsumfang von Fireflies Schritt für Schritt
+nachzubauen**: Bot, der Meetings beitritt, Transkript mit Sprechern, KI-Zusammenfassung,
+Action Items, Suche, Fragen an Meetings („AskFred“), Kalender- und E-Mail-Anbindung,
+Integrationen über API und Webhooks. Wie weit wir sind, zeigt die Gegenüberstellung in
+**[docs/fireflies-analyse.md](docs/fireflies-analyse.md)**; was noch fehlt, steht im [Fahrplan](https://github.com/enving/Koprotokoll/issues/21).
+
+Was wir **anders** machen als Fireflies:
+
+- **lokal statt Cloud** – Audio und Transkripte bleiben auf deinem Gerät oder Server
+- **Deutsch zuerst** – Oberfläche, Zusammenfassungen und ein deutsch trainiertes Sprachmodell
+- **offen statt Abo** – MIT-Lizenz, selbst erweiterbar, auch für Behörden und Vereine nutzbar
+- **dazu passend die [Ko-Familie](#-die-ko-familie)** – z. B. Kodiktat zum Diktieren mit demselben Modell
+
+<sub>Koprotokoll ist ein unabhängiges Projekt und nicht mit Fireflies.ai verbunden. Wir bauen
+Funktionen nach, übernehmen aber weder Code noch Texte, Logos oder Designs von Fireflies.
+„Fireflies“ ist eine Marke ihres Inhabers.</sub>
 
 ## 💡 Warum dieses Projekt?
 

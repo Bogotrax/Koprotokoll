@@ -1,5 +1,12 @@
 # Fireflies.ai – Analyse mit REA und Abbildung in Koprotokoll
 
+Koprotokoll soll den Funktionsumfang von Fireflies.ai als lokale, deutsche Open-Source-Software
+nachbauen. Dieses Dokument hält fest, was Fireflies kann, und die Tabelle unten ist die
+**Fortschrittsliste**: Wer eine Funktion fertigstellt, setzt dort ✔.
+
+Koprotokoll ist unabhängig und nicht mit Fireflies.ai verbunden. Nachgebaut werden Funktionen,
+nicht Code, Texte, Logos oder Design.
+
 ## Vorgehen
 
 Die Analyse wurde mit [REA – Reverse Engineer Anything](https://github.com/morluto/rea)

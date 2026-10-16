@@ -2,6 +2,9 @@
 
 [← zurück zum README](../README.md) · Stand: Oktober 2026
 
+**Ziel des Projekts:** [Fireflies.ai](https://fireflies.ai/) nachbauen – als Open Source, lokal
+und auf Deutsch. Was Fireflies kann und wo wir stehen, zeigt [die Analyse](fireflies-analyse.md).
+
 Dieser Plan beschreibt, wie Koprotokoll vom „Meeting-Assistenten für Google Meet“ zu einem
 lokalen Assistenten wird, der **mit den Programmen arbeitet, die Leute wirklich benutzen**:
 Outlook, Thunderbird, Nextcloud, Teams- und Zoom-Desktop-Apps, Telefonate. Außerdem soll er
