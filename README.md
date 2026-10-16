@@ -1,193 +1,182 @@
-# kontextlayer_kommunikation – lokaler Meeting-Notetaker
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Notetaker – Dein Meeting-Assistent. Auf Deutsch. Lokal. Open Source." width="100%">
+</p>
 
-Ein lokaler Nachbau der Grundfunktionen von [Fireflies.ai](https://fireflies.ai/):
-Meetings aufnehmen oder hochladen, mit **NVIDIA Parakeet** transkribieren, Sprecher
-erkennen, zusammenfassen, Action Items extrahieren und alles durchsuchen – ohne Cloud.
-Die Analyse des Vorbilds mit [REA](https://github.com/morluto/rea) steht in
-[`docs/fireflies-analyse.md`](docs/fireflies-analyse.md).
+<p align="center">
+  <a href="LICENSE"><img alt="Lizenz: MIT" src="https://img.shields.io/badge/Lizenz-MIT-6c3ce1"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
+  <img alt="Spracherkennung: NVIDIA Parakeet" src="https://img.shields.io/badge/ASR-NVIDIA%20Parakeet-76b900">
+  <img alt="Läuft lokal" src="https://img.shields.io/badge/l%C3%A4uft-lokal-0e8f7e">
+  <a href="CONTRIBUTING.md"><img alt="Beiträge willkommen" src="https://img.shields.io/badge/Beitr%C3%A4ge-willkommen-d9480f"></a>
+</p>
 
-## Funktionen
+<p align="center">
+  <a href="#-schnellstart">Schnellstart</a> ·
+  <a href="#-funktionen">Funktionen</a> ·
+  <a href="docs/einrichtung.md">Einrichtung</a> ·
+  <a href="docs/api.md">API</a> ·
+  <a href="docs/architektur.md">Architektur</a> ·
+  <a href="CONTRIBUTING.md">Mitmachen</a> ·
+  <a href="AGENTS.md">Für Coding-Agenten</a>
+</p>
 
-- **Bot als Meeting-Teilnehmer**: tritt Google-Meet-Meetings als „Notetaker“ bei – manuell per Link oder automatisch aus dem Google Kalender – und nimmt den Ton aller Teilnehmer auf
-- **Google-Integration**: Kalender (Auto-Join) und Gmail (Zusammenfassung nach dem Meeting per E-Mail)
-- **Native API**: REST mit API-Schlüsseln, OpenAPI-Doku unter `/docs`, signierte Webhooks, MCP-Server für KI-Assistenten
-- **Aufnahme im Browser**: Mikrofon (Gespräch vor Ort) oder Mikrofon + Tab-/Bildschirmton (Online-Meeting in Zoom, Teams, Meet …)
-- **Upload** von MP3, MP4, WAV, M4A, WebM, OGG, FLAC, MOV …
-- **Transkription** mit Parakeet TDT 0.6B v3 (25 europäische Sprachen inkl. Deutsch, automatische Spracherkennung), läuft auf CPU
-- **Sprechererkennung** (Diarisierung) mit umbenennbaren Sprechern und Redeanteilen
-- **Zusammenfassung**: Überblick, Stichwörter, Gliederung mit Zeitmarken, Action Items, Entscheidungen, offene Fragen
-- **Frag das Meeting** (wie „AskFred“)
-- **Volltextsuche** über alle Meetings, Klick springt zur Stelle im Audio
-- **Player mit synchronem Transkript**, Soundbites, Kommentare, Action-Item-Markierungen
-- **Export** als Markdown, TXT, SRT-Untertitel oder JSON
+---
 
-## Schnellstart
+**Notetaker** schreibt deine Meetings mit, erkennt, wer spricht, fasst zusammen und sammelt die
+Aufgaben ein – so wie [Fireflies.ai](https://fireflies.ai/), Otter oder tl;dv. Der Unterschied:
+**Alles läuft auf deinem eigenen Rechner, auf Deutsch, und der Code ist offen.**
+Kein Audio verlässt dein Gerät, kein Abo, keine Datenweitergabe an US-Clouds.
 
-Voraussetzungen: Python ≥ 3.11 und `ffmpeg`.
+## 💡 Warum dieses Projekt?
 
-```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium         # Browser für den Meeting-Bot
-python scripts/download_models.py   # optional: Modelle vorab laden (~700 MB), danach offline
-python -m notetaker                 # → http://127.0.0.1:8000
-```
+Meeting-Assistenten sind enorm praktisch. Die bekannten Dienste schicken aber jedes Wort
+deiner Besprechungen in eine fremde Cloud. Für Kundengespräche, Betriebsratssitzungen, Arztpraxen,
+Kanzleien, Behörden oder einfach vertrauliche Team-Meetings ist das oft ein No-Go.
 
-Beim ersten Transkribieren werden die Modelle sonst automatisch geladen
-(Parakeet int8 von Hugging Face, Diarisierungsmodelle von den sherpa-onnx-Releases).
-
-### Zusammenfassungen mit lokalem LLM (empfohlen)
-
-Ohne LLM erstellt die App eine einfache extraktive Zusammenfassung. Für echte
-KI-Zusammenfassungen ein lokales Modell über eine OpenAI-kompatible API bereitstellen,
-z. B. mit [Ollama](https://ollama.com):
-
-```bash
-ollama pull qwen2.5:7b-instruct
-python -m notetaker   # nutzt standardmäßig http://localhost:11434/v1
-```
-
-Genauso funktionieren llama.cpp (`llama-server`), LM Studio oder vLLM über `NOTETAKER_LLM_URL`.
-
-## Meeting-Bot (Teilnehmer wie bei Fireflies)
-
-Der Bot startet einen eigenen Chromium, öffnet den Meeting-Link, setzt seinen Namen,
-schaltet Kamera und Mikrofon aus und klickt „Beitreten“ bzw. „Teilnahme anfragen“.
-Im Meeting greift er die Audiospuren aller Teilnehmer direkt an den WebRTC-Verbindungen ab
-(keine virtuelle Soundkarte nötig) und nimmt sie auf. Er verlässt das Meeting, wenn es endet,
-er allein ist, zu lange Stille herrscht oder die Höchstdauer erreicht ist. Danach läuft die
-normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
-
-- **Manuell**: Meet-Link in das Feld in der Seitenleiste einfügen oder `POST /api/bots`
-- **Automatisch**: Google verbinden → der Bot tritt allen Kalenderterminen mit Meet-Link bei
-  (abgelehnte Termine werden übersprungen), etwa eine Minute vor Beginn
-- **Eigenes Google-Konto für den Bot (empfohlen)**: Google lässt anonyme Gäste oft gar nicht
-  oder nur nach Freigabe herein. Einmalig `python -m notetaker bot-login` ausführen und im
-  geöffneten Browser mit einem eigenen Bot-Konto anmelden.
-- Läuft der Bot auf einem Server ohne Bildschirm und wird erkannt, hilft
-  `NOTETAKER_BOT_HEADLESS=0` zusammen mit `xvfb-run python -m notetaker`.
-
-Unterstützt wird zurzeit **Google Meet**. Zoom- und Teams-Links werden erkannt, der Beitritt
-ist aber noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den Ton einer beliebigen
-Webseite auf (z. B. Webinar).
-
-> Hinweis: Aufzeichnungen nur mit Einverständnis der Teilnehmenden. Der Bot tritt sichtbar
-> unter seinem Namen bei.
-
-## Google Kalender & Gmail einrichten
-
-1. In der [Google Cloud Console](https://console.cloud.google.com/) ein Projekt anlegen und die
-   **Google Calendar API** und **Gmail API** aktivieren.
-2. OAuth-Zustimmungsbildschirm konfigurieren (intern oder extern mit dir als Testnutzer).
-3. Anmeldedaten → OAuth-Client-ID → **Webanwendung**, autorisierte Weiterleitungs-URI:
-   `http://localhost:8000/api/integrations/google/callback` (bzw. `<NOTETAKER_PUBLIC_URL>/api/integrations/google/callback`).
-4. Client-ID und -Secret in der App unter **Integrationen & API** eintragen (oder per
-   `NOTETAKER_GOOGLE_CLIENT_ID` / `NOTETAKER_GOOGLE_CLIENT_SECRET`) und **Mit Google verbinden**.
-
-Berechtigungen: Kalender nur lesen, Gmail nur senden. Nach jedem Bot-Meeting geht die
-Zusammenfassung an dich (optional auch an alle Termin-Teilnehmer).
-
-## API
-
-Vollständige, interaktive Doku: **http://127.0.0.1:8000/docs** (OpenAPI unter `/openapi.json`).
-
-Anfragen direkt vom eigenen Rechner brauchen keinen Schlüssel. Von anderen Rechnern, hinter
-einem Reverse-Proxy oder aus Tools wie n8n/Zapier/Make: API-Schlüssel in der Oberfläche oder per
-`python -m notetaker create-key n8n` erzeugen und mitsenden. Mit `NOTETAKER_REQUIRE_KEY=1` gilt
-die Schlüsselpflicht auch lokal.
-
-```bash
-KEY=nt_…
-# Bot in ein Meeting schicken
-curl -X POST http://localhost:8000/api/bots -H "Authorization: Bearer $KEY" \
-     -H "Content-Type: application/json" -d '{"meeting_url": "https://meet.google.com/abc-defg-hij"}'
-# Meetings, Transkript, Suche, Export
-curl -H "Authorization: Bearer $KEY" http://localhost:8000/api/meetings
-curl -H "Authorization: Bearer $KEY" http://localhost:8000/api/meetings/1
-curl -H "Authorization: Bearer $KEY" "http://localhost:8000/api/search?q=budget"
-curl -H "Authorization: Bearer $KEY" "http://localhost:8000/api/meetings/1/export?format=md"
-```
-
-| Bereich | Endpunkte |
-|---|---|
-| Meetings | `GET/POST /api/meetings`, `GET/PATCH/DELETE /api/meetings/{id}`, `…/audio`, `…/export`, `…/summarize`, `…/ask`, `…/bookmarks` |
-| Suche | `GET /api/search?q=` |
-| Bots | `POST/GET /api/bots`, `GET/DELETE /api/bots/{id}` |
-| Webhooks | `GET/POST /api/webhooks`, `DELETE /api/webhooks/{id}`, `POST /api/webhooks/{id}/test` |
-| Schlüssel | `GET/POST /api/keys`, `DELETE /api/keys/{id}` |
-| Google | `GET/DELETE /api/integrations/google`, `PUT …/client`, `GET …/connect`, `PATCH …/settings`, `POST …/sync` |
-
-### Webhooks
-
-Ereignisse `meeting.completed`, `meeting.failed`, `bot.status` werden als `POST` mit
-`{"event", "created_at", "data"}` zugestellt. Prüfung der Signatur:
-
-```python
-import hmac, hashlib
-expected = "sha256=" + hmac.new(secret.encode(), request_body, hashlib.sha256).hexdigest()
-assert hmac.compare_digest(expected, request.headers["X-Notetaker-Signature"])
-```
-
-### MCP-Server (Claude, Cursor & Co.)
-
-```bash
-claude mcp add notetaker -- python -m notetaker mcp
-# entfernter Server: NOTETAKER_URL=https://… NOTETAKER_API_KEY=nt_… python -m notetaker mcp
-```
-
-Werkzeuge: `list_meetings`, `search_meetings`, `get_summary`, `get_transcript`, `ask_meeting`, `send_bot`.
-
-## Konfiguration
-
-| Variable | Standard | Bedeutung |
+| | Notetaker | typische Cloud-Dienste |
 |---|---|---|
-| `NOTETAKER_DATA` | `./data` | Datenbank, Mediendateien, Modelle |
-| `NOTETAKER_ASR_MODEL` | `nemo-parakeet-tdt-0.6b-v3` | z. B. `nemo-parakeet-tdt-0.6b-v2` (nur Englisch) |
-| `NOTETAKER_ASR_QUANT` | `int8` | leer lassen für fp32 (genauer, größer) |
-| `NOTETAKER_ASR_PATH` | – | lokaler Modellordner statt Download |
-| `NOTETAKER_DIARIZATION` | `1` | `0` schaltet Sprechererkennung ab |
-| `NOTETAKER_DIARIZATION_THRESHOLD` | `0.8` | kleiner = mehr Sprecher |
-| `NOTETAKER_LLM` | `1` | `0` = nur Offline-Heuristik |
-| `NOTETAKER_LLM_URL` | `http://localhost:11434/v1` | OpenAI-kompatibler Endpunkt |
-| `NOTETAKER_LLM_MODEL` | `qwen2.5:7b-instruct` | Modellname |
-| `NOTETAKER_PUBLIC_URL` | `http://localhost:8000` | Basis-URL für OAuth-Weiterleitung und Links in E-Mails |
-| `NOTETAKER_REQUIRE_KEY` | `0` | `1` = API-Schlüssel auch für lokale Anfragen |
-| `NOTETAKER_GOOGLE_CLIENT_ID` / `…_SECRET` | – | OAuth-Client (alternativ in der Oberfläche) |
-| `NOTETAKER_BOT_NAME` | `Notetaker` | Anzeigename des Bots im Meeting |
-| `NOTETAKER_BOT_HEADLESS` | `1` | `0` = sichtbares Browserfenster |
-| `NOTETAKER_BOT_CHROME` | – | Pfad zu Chrome/Chromium statt Playwright-Chromium |
-| `NOTETAKER_BOT_SILENCE_MINUTES` | `10` | Meeting verlassen nach so langer Stille |
-| `NOTETAKER_BOT_MAX_MINUTES` | `180` | Höchstdauer einer Aufnahme |
-| `NOTETAKER_BOT_ADMIT_MINUTES` | `10` | Wartezeit auf Einlass |
+| Wo landet das Audio? | **auf deinem Rechner** | Server des Anbieters |
+| Deutsch | **von Grund auf** (Oberfläche, Zusammenfassungen, Modell) | oft nachrangig |
+| Kosten | **kostenlos**, Open Source (MIT) | monatliches Abo pro Person |
+| Offline nutzbar | **ja**, nach dem einmaligen Modell-Download | nein |
+| Anpassbar & erweiterbar | **ja** – Code, API, Webhooks, MCP | nur über vorgegebene Integrationen |
+| DSGVO | Daten verlassen das Gerät nicht* | Auftragsverarbeitung, Drittlandtransfer |
 
-## Architektur
+<sub>* Ausnahme: Funktionen, die du bewusst einschaltest, z. B. Google Kalender/Gmail oder ein entferntes LLM.</sub>
 
+## ✨ Funktionen
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**🎙️ Aufnehmen**
+- **Meeting-Bot** tritt Google Meet als Teilnehmer bei – per Link oder automatisch aus dem Kalender
+- Aufnahme im Browser: Mikrofon oder Ton eines Tabs (Zoom, Teams, Meet im Browser)
+- Upload von MP3, MP4, WAV, M4A, WebM, OGG, FLAC …
+
+**🧠 Verstehen**
+- Transkription mit **NVIDIA Parakeet** (25 Sprachen inkl. Deutsch), läuft auf der CPU
+- **Sprechererkennung** mit umbenennbaren Sprechern und Redeanteilen
+- **Zusammenfassung**, Stichwörter, Gliederung, **Action Items**, Entscheidungen, offene Fragen
+- **„Frag das Meeting“** – Fragen in natürlicher Sprache
+
+</td>
+<td width="50%" valign="top">
+
+**🔎 Wiederfinden**
+- Volltextsuche über alle Meetings, Klick springt an die Stelle im Audio
+- Player mit mitlaufendem Transkript
+- Soundbites, Kommentare und Aufgaben-Markierungen mit Zeitstempel
+- Export als Markdown, TXT, SRT-Untertitel oder JSON
+
+**🔌 Anbinden**
+- **Google Kalender** (Auto-Join) und **Gmail** (Zusammenfassung per Mail)
+- **REST-API** mit API-Schlüsseln und OpenAPI-Doku
+- **Webhooks** (HMAC-signiert) für n8n, Zapier, Make & Co.
+- **MCP-Server** für Claude, Cursor und andere KI-Assistenten
+
+</td>
+</tr>
+</table>
+
+## 🖼️ So sieht's aus
+
+<p align="center">
+  <img src="docs/assets/screenshot-uebersicht.png" alt="Übersicht eines Meetings mit Zusammenfassung, Action Items und Redeanteilen" width="100%">
+</p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshot-transkript.png" alt="Transkript mit Sprechern und globaler Suche"></td>
+<td width="50%"><img src="docs/assets/screenshot-integrationen.png" alt="Integrationen: Bot schicken, Google, API-Schlüssel, Webhooks, MCP"></td>
+</tr>
+<tr>
+<td align="center"><sub>Transkript mit Sprechern und Suche über alle Meetings</sub></td>
+<td align="center"><sub>Meeting-Bot, Google, API-Schlüssel, Webhooks, MCP</sub></td>
+</tr>
+</table>
+
+## ⚙️ So funktioniert's
+
+<p align="center">
+  <img src="docs/assets/ablauf.svg" alt="Ablauf: Quellen → lokale Verarbeitung (ffmpeg, Parakeet, Sprechererkennung, LLM, Speicherung) → Ergebnisse" width="100%">
+</p>
+
+Mehr dazu in der [Architektur-Übersicht](docs/architektur.md).
+
+## 🚀 Schnellstart
+
+Voraussetzungen: **Python 3.11+** und **ffmpeg**. Eine Grafikkarte ist nicht nötig.
+
+```bash
+git clone https://github.com/enving/kontextlayer_kommunikation.git
+cd kontextlayer_kommunikation
+python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+playwright install chromium                        # nur für den Meeting-Bot
+python -m notetaker                                # → http://127.0.0.1:8000
 ```
-Browser (static/)  ──HTTP──▶  FastAPI (app.py, auth.py)       ◀── REST-Clients, MCP (mcp_server.py)
-  Aufnahme, Upload,             │
-  Player, Suche                 ├─ bot/          Chromium-Bot tritt Meetings bei (Playwright),
-                                │                capture.js greift WebRTC-Ton ab
-                                ├─ scheduler.py  Google Kalender → Bots einplanen
-                                ├─ google.py     OAuth, Calendar, Gmail
-                                ├─ events.py     Webhooks (HMAC-signiert) + recap.py (Gmail)
-                                ├─ pipeline.py   Hintergrund-Queue
-                                │    ├─ audio.py      ffmpeg → 16 kHz WAV
-                                │    ├─ speech.py     Parakeet (onnx-asr) + VAD,
-                                │    │                Diarisierung (sherpa-onnx),
-                                │    │                Wörter → Äußerungen
-                                │    └─ summarize.py  lokales LLM / Heuristik
-                                ├─ db.py         SQLite + FTS5
-                                └─ export.py     MD / TXT / SRT / JSON
-```
 
+Beim ersten Transkribieren lädt Notetaker die Modelle (~700 MB) einmalig herunter. Wer danach
+komplett offline arbeiten will, lädt sie vorab: `python scripts/download_models.py`.
 
-## Tests
+**Für richtig gute Zusammenfassungen** ein lokales Sprachmodell starten, z. B. mit
+[Ollama](https://ollama.com): `ollama pull qwen2.5:7b-instruct` – Notetaker findet es automatisch.
+Ohne LLM gibt es eine einfache, rein lokale Auswertung.
+
+➡️ Alles Weitere – Meeting-Bot, Google Kalender & Gmail, Konfiguration – steht in
+**[docs/einrichtung.md](docs/einrichtung.md)**, die API in **[docs/api.md](docs/api.md)**.
+
+## 🧩 Technik
+
+| Baustein | Projekt | Lizenz |
+|---|---|---|
+| Spracherkennung | [NVIDIA Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) über [onnx-asr](https://github.com/istupakov/onnx-asr) | CC-BY-4.0 (Modell), MIT |
+| Sprachaktivität | [Silero VAD](https://github.com/snakers4/silero-vad) | MIT |
+| Sprechererkennung | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) mit pyannote-Segmentierung 3.0 und 3D-Speaker ERes2Net | Apache-2.0 / MIT |
+| Zusammenfassung | beliebiges lokales LLM mit OpenAI-kompatibler API (Ollama, llama.cpp, LM Studio, vLLM) | – |
+| Meeting-Bot | [Playwright](https://playwright.dev/) + Chromium | Apache-2.0 |
+| Server & Speicher | FastAPI, SQLite mit FTS5 | MIT / Public Domain |
+
+Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) steht in
+[docs/fireflies-analyse.md](docs/fireflies-analyse.md).
+
+## 🗺️ Roadmap
+
+- [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
+- [x] Meeting-Bot für Google Meet, Google Kalender & Gmail
+- [x] REST-API, Webhooks, MCP-Server
+- [ ] Meeting-Bot für **Microsoft Teams** und **Zoom**
+- [ ] Kalender über **CalDAV/ICS** (Outlook, Nextcloud, …)
+- [ ] **Live-Transkript** während des Meetings
+- [ ] Sprecher **wiedererkennen** über Meetings hinweg (Stimmprofile)
+- [ ] **Docker**-Image und Installer für Windows/macOS
+- [ ] Mehrbenutzer-Betrieb mit Teams und Freigaben
+
+Ideen und Wünsche gerne als [Issue](https://github.com/enving/kontextlayer_kommunikation/issues).
+
+## 🤝 Mitmachen
+
+Jede Hilfe ist willkommen – Code, Tests mit echten Meetings, Übersetzungen, Doku, Ideen.
+Wie das geht, steht in **[CONTRIBUTING.md](CONTRIBUTING.md)**. Kurz gesagt:
 
 ```bash
 pip install -r requirements-dev.txt
-pytest
+pytest                  # läuft ohne Modelle und ohne Internet in Sekunden
 ```
 
-Die Tests nutzen Platzhalter-Engines und eine nachgebaute Google-API und brauchen keine
-Modelle. Der Bot-Test startet einen echten Chromium gegen eine lokale WebRTC-Testseite
-(`tests/fixtures/webrtc_meeting.html`) und wird übersprungen, wenn kein Browser installiert ist.
+**Du arbeitest mit einem Coding-Agenten** (Claude Code, Codex, Cursor, Copilot, Aider …)?
+Dann zeig ihm **[AGENTS.md](AGENTS.md)** – dort steht alles, was ein Agent braucht, um sofort
+loszulegen: Aufbau, Befehle, Konventionen und gute Einstiegsaufgaben.
+
+## ⚖️ Rechtliches & Verantwortung
+
+Notetaker ist ein Werkzeug. Wer Gespräche aufzeichnet, braucht in Deutschland grundsätzlich
+die **Einwilligung aller Beteiligten** (§ 201 StGB, DSGVO). Der Meeting-Bot tritt deshalb
+sichtbar unter seinem Namen bei. Sag zu Beginn eines Meetings Bescheid, dass mitgeschrieben wird.
+
+## 📄 Lizenz
+
+[MIT](LICENSE) – nutzen, ändern, weitergeben, auch kommerziell. Die eingesetzten Modelle haben
+eigene Lizenzen (siehe [Technik](#-technik)); Parakeet v3 verlangt bei Weitergabe eine Namensnennung (CC-BY-4.0).

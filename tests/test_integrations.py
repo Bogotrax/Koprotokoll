@@ -140,9 +140,9 @@ def test_bot_api_schedule_and_cancel(client):
 
 
 def _chrome_path() -> str | None:
-    for p in (os.environ.get("NOTETAKER_BOT_CHROME"), "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"):
-        if p and Path(p).exists():
-            return p
+    custom = os.environ.get("NOTETAKER_BOT_CHROME")
+    if custom and Path(custom).exists():
+        return custom
     try:
         from playwright.sync_api import sync_playwright
 

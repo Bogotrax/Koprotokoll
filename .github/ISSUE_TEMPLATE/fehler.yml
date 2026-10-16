@@ -1,0 +1,27 @@
+name: 🐞 Fehler melden
+description: Etwas funktioniert nicht wie erwartet
+labels: ["bug"]
+body:
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist passiert?
+      description: Was hast du gemacht, was hast du erwartet, was ist stattdessen passiert?
+    validations:
+      required: true
+  - type: textarea
+    id: nachstellen
+    attributes:
+      label: Wie lässt es sich nachstellen?
+      placeholder: "1. … 2. … 3. …"
+  - type: textarea
+    id: umgebung
+    attributes:
+      label: Umgebung
+      description: Betriebssystem, Python-Version, Browser, LLM (z. B. Ollama + Modell), Meeting-Plattform
+  - type: textarea
+    id: log
+    attributes:
+      label: Log-Ausgabe
+      description: Relevante Zeilen aus der Konsole. Bitte keine vertraulichen Transkripte einfügen!
+      render: text
