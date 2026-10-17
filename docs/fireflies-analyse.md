@@ -49,8 +49,8 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 
 | Fireflies-Funktion | Lokaler Nachbau | Umsetzung |
 |---|---|---|
-| Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
-| Kalender-Anbindung (Auto-Join) | ✔ Google Kalender | OAuth 2.0, Calendar API (nur lesen) |
+| Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet und Jitsi als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
+| Kalender-Anbindung (Auto-Join) | ✔ Google Kalender, Microsoft/Outlook (auch Privatkonten) | OAuth 2.0, Kalender nur lesen; Termine der nächsten 7 Tage auf der Startseite |
 | Recap-E-Mail nach dem Meeting | ✔ über Gmail an sich selbst, optional an alle Teilnehmer | Gmail API (nur senden) |
 | API / Webhooks / MCP | ✔ REST mit API-Schlüsseln, OpenAPI, HMAC-signierte Webhooks, MCP-Server | FastAPI, `mcp` |
 | Aufnahme ohne Bot | Browser-Aufnahme: Mikrofon **oder** Mikrofon + Tab-/Bildschirmton | `MediaRecorder` + `getDisplayMedia` |

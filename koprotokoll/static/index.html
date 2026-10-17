@@ -34,6 +34,10 @@
       <p>Lade eine Audio- oder Videodatei hoch (MP3, MP4, WAV, M4A …) oder nimm direkt im Browser auf.
         Transkription mit NVIDIA Parakeet, Sprechererkennung, Zusammenfassung, Action Items und Suche –
         alles auf diesem Rechner.</p>
+      <div class="card">
+        <h3>Deine nächsten Termine (7 Tage)</h3>
+        <ul id="upcoming-list" class="list"></ul>
+      </div>
     </section>
 
     <section id="integrations" hidden>
@@ -43,10 +47,10 @@
           <div class="card">
             <h3>Bot als Teilnehmer schicken</h3>
             <p class="muted small">Der Bot tritt dem Meeting als „Koprotokoll“ bei, nimmt den Ton aller Teilnehmer auf
-              und erstellt danach Transkript und Zusammenfassung. Unterstützt: Google Meet (sowie beliebige Webseiten
+              und erstellt danach Transkript und Zusammenfassung. Unterstützt: Google Meet, Jitsi (meet.jit.si und eigene Instanzen) sowie beliebige Webseiten
               mit Plattform „web“).</p>
             <form id="bot-form" class="stack">
-              <input id="bot-url" placeholder="https://meet.google.com/abc-defg-hij" required>
+              <input id="bot-url" placeholder="https://meet.jit.si/Raumname" required>
               <div class="row"><input id="bot-title" placeholder="Titel (optional)">
                 <input id="bot-at" type="datetime-local" title="Startzeit (leer = sofort)"></div>
               <button class="primary">Bot schicken</button>
@@ -56,6 +60,10 @@
           <div class="card">
             <h3>Google Kalender &amp; Gmail</h3>
             <div id="google-box"></div>
+          </div>
+          <div class="card">
+            <h3>Microsoft Kalender &amp; Outlook</h3>
+            <div id="microsoft-box"></div>
           </div>
         </div>
         <div>

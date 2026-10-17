@@ -1,15 +1,20 @@
-"""Kalender-Automatik: Bots für anstehende Termine mit Meeting-Link einplanen."""
+"""Kalender-Automatik: Bots für anstehende Termine mit Meeting-Link einplanen.
+
+Der Scheduler arbeitet mit einer Liste von ``CalendarSource``-Quellen
+(ICS-Abolink, Google, später Microsoft Graph …) und legt pro Termin mit
+unterstütztem Meeting-Link einen Bot an.
+"""
 
 from __future__ import annotations
 
 import logging
 import threading
 import time
-from datetime import datetime
+from typing import Iterable
 
 from .bot.platforms import SUPPORTED, find_meeting_url
+from .calendar_source import CalendarEvent, CalendarSource
 from .db import Database
-from .google import GoogleClient, GoogleError
 
 log = logging.getLogger(__name__)
 
@@ -17,15 +22,13 @@ LOOKAHEAD_S = 15 * 60
 JOIN_EARLY_S = 60
 
 
-def _ts(value: dict | None) -> float | None:
-    if not value or "dateTime" not in value:  # ganztägige Termine haben kein dateTime
-        return None
-    return datetime.fromisoformat(value["dateTime"].replace("Z", "+00:00")).timestamp()
-
-
 class CalendarScheduler:
-    def __init__(self, db: Database, google: GoogleClient, poll_seconds: float = 60):
-        self.db, self.google, self.poll = db, google, poll_seconds
+    def __init__(self, db: Database, sources: Iterable[CalendarSource],
+                 poll_seconds: float = 60, jitsi_hosts: tuple[str, ...] = ()):
+        self.db = db
+        self.sources = list(sources)
+        self.poll = poll_seconds
+        self.jitsi_hosts = jitsi_hosts
         self._stop = threading.Event()
         self.last_sync: dict = {}
 
@@ -37,39 +40,56 @@ class CalendarScheduler:
 
     def _loop(self) -> None:
         while not self._stop.wait(self.poll):
-            if self.google.connected() and self.google.settings()["auto_join"]:
-                try:
-                    self.sync()
-                except (GoogleError, OSError) as e:
-                    log.warning("Kalender-Abgleich fehlgeschlagen: %s", e)
-                    self.last_sync = {"at": time.time(), "error": str(e)}
+            try:
+                self.sync()
+            except Exception as e:  # noqa: BLE001 – eine Quelle soll die anderen nicht blockieren
+                log.warning("Kalender-Abgleich fehlgeschlagen: %s", e)
+                self.last_sync = {"at": time.time(), "error": str(e)}
 
     def sync(self, now: float | None = None) -> list[int]:
-        """Termine im Fenster [jetzt, jetzt+15 min] prüfen und neue Bots anlegen."""
+        """Termine im Fenster [jetzt-5 min, jetzt+15 min] prüfen und neue Bots anlegen."""
         now = now or time.time()
-        created = []
-        for event in self.google.events(now - 5 * 60, now + LOOKAHEAD_S):
-            if event.get("status") == "cancelled":
+        created: list[int] = []
+        errors: list[str] = []
+        for source in self.sources:
+            if not source.enabled():
                 continue
-            start, end = _ts(event.get("start")), _ts(event.get("end"))
-            if start is None or (end is not None and end <= now):
+            try:
+                events = source.events(now - 5 * 60, now + LOOKAHEAD_S)
+            except Exception as e:  # noqa: BLE001
+                log.warning("Kalenderquelle %s fehlgeschlagen: %s", source.name, e)
+                errors.append(f"{source.name}: {e}")
                 continue
-            attendees = event.get("attendees") or []
-            me = next((a for a in attendees if a.get("self")), None)
-            if me and me.get("responseStatus") == "declined":
+            created += self._plan(source, events, now)
+        self.last_sync = {"at": now, "created": created}
+        if errors:
+            self.last_sync["error"] = "; ".join(errors)
+        return created
+
+    def _plan(self, source: CalendarSource, events: list[CalendarEvent], now: float) -> list[int]:
+        created: list[int] = []
+        for event in events:
+            if event.cancelled:
                 continue
-            found = find_meeting_url(event)
+            start, end = event.start, event.end
+            if event.all_day or end is not None and end <= now:
+                continue
+            if event.self_response == "declined":
+                continue
+            found = find_meeting_url(
+                {"location": event.location, "description": event.description,
+                 "meeting_url": event.meeting_url or ""},
+                self.jitsi_hosts)
             if not found or found[1] not in SUPPORTED:
                 continue
             url, platform = found
             bot_id = self.db.create_bot(
-                url, platform, event.get("summary") or "Meeting", max(now, start - JOIN_EARLY_S),
-                calendar_event_id=f"{event['id']}@{int(start)}",
-                meta={"calendar_event_id": event["id"], "event_start": start, "event_end": end,
-                      "attendees": [a["email"] for a in attendees if a.get("email") and not a.get("resource")]},
+                url, platform, event.title or "Meeting", max(now, start - JOIN_EARLY_S),
+                calendar_event_id=f"{source.name}:{event.id}@{int(start)}",  # verschoben → neuer Bot
+                meta={"calendar_event_id": event.id, "calendar_source": source.name,
+                      "event_start": start, "event_end": end, "attendees": event.attendees},
             )
             if bot_id:
-                log.info("Bot %s für „%s“ eingeplant", bot_id, event.get("summary"))
+                log.info("Bot %s für „%s“ eingeplant", bot_id, event.title)
                 created.append(bot_id)
-        self.last_sync = {"at": now, "created": created}
         return created

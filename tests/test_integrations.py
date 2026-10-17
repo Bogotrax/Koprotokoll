@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import koprotokoll.google as google_mod
+import koprotokoll.microsoft as microsoft_mod
 from koprotokoll.app import create_app
 from koprotokoll.bot.platforms import detect_platform, find_meeting_url
 from koprotokoll.config import Settings
@@ -25,7 +26,15 @@ REMOTE = {"X-Forwarded-For": "203.0.113.7"}  # simuliert Zugriff von außen (üb
 
 
 def make_client(tmp_path, **settings):
-    s = Settings(data_dir=tmp_path, google_client_id="cid", google_client_secret="csecret", **settings)
+    s = Settings(data_dir=tmp_path, google_client_id="cid", google_client_secret="csecret",
+                 **settings)
+    app = create_app(s, transcriber=FakeTranscriber(), diarizer=FakeDiarizer(), llm=NoLLM(), background=False)
+    return TestClient(app)
+
+
+def make_ms_client(tmp_path, **settings):
+    s = Settings(data_dir=tmp_path, microsoft_client_id="mid", microsoft_client_secret="msecret",
+                 **settings)
     app = create_app(s, transcriber=FakeTranscriber(), diarizer=FakeDiarizer(), llm=NoLLM(), background=False)
     return TestClient(app)
 
@@ -52,6 +61,50 @@ def test_find_meeting_url_prefers_conference_data():
     assert find_meeting_url(event) == ("https://meet.google.com/xyz-abcd-efg", "google_meet")
     assert find_meeting_url({"description": "<a href=\"https://zoom.us/j/999\">"}) == ("https://zoom.us/j/999", "zoom")
     assert find_meeting_url({"summary": "Mittag"}) is None
+
+
+def test_detect_platform_jitsi():
+    assert detect_platform("https://meet.jit.si/MeinRaum") == "jitsi"
+    assert detect_platform("https://meet.jit.si/Team-Sync?password=x") == "jitsi"
+    # Eigene Instanzen werden nur mit Konfiguration erkannt
+    assert detect_platform("https://jitsi.example.org/Meeting") is None
+    assert detect_platform("https://jitsi.example.org/Meeting", jitsi_hosts=["jitsi.example.org"]) == "jitsi"
+    # meet.jit.si bleibt auch mit eigener Host-Liste erkannt
+    assert detect_platform("https://meet.jit.si/Raum", jitsi_hosts=["jitsi.example.org"]) == "jitsi"
+
+
+def test_find_meeting_url_jitsi():
+    assert find_meeting_url({"description": "Termin: https://meet.jit.si/Planung"}) == (
+        "https://meet.jit.si/Planung", "jitsi")
+    assert find_meeting_url(
+        {"location": "https://jitsi.example.org/Review"},
+        jitsi_hosts=["jitsi.example.org"]) == ("https://jitsi.example.org/Review", "jitsi")
+    # Ohne Konfiguration wird der eigene Host nicht erkannt
+    assert find_meeting_url({"location": "https://jitsi.example.org/Review"}) is None
+
+
+def test_find_meeting_url_prefers_supported_platform():
+    # Teams-Link im Termin, Jitsi in der Beschreibung → Jitsi hat Vorrang
+    event = {"meeting_url": "https://teams.live.com/meet/123?p=x",
+             "description": "Alternativ: https://meet.jit.si/Planung"}
+    assert find_meeting_url(event) == ("https://meet.jit.si/Planung", "jitsi")
+    # Ohne unterstützten Link bleibt der Teams-Link (Anzeige kann ihn zeigen)
+    only_teams = {"meeting_url": "https://teams.live.com/meet/123?p=x"}
+    assert find_meeting_url(only_teams) == ("https://teams.live.com/meet/123?p=x", "teams")
+
+
+def test_jitsi_join_url():
+    from koprotokoll.bot.platforms import Jitsi
+    url = Jitsi._join_url("https://meet.jit.si/Raum", "Koprotokoll")
+    assert "config.defaultLanguage=" in url
+    assert "config.startWithAudioMuted=true" in url
+    assert "config.startWithVideoMuted=true" in url
+    assert "userInfo.displayName=" in url
+    assert "Koprotokoll" in url
+    # Bestehender Fragment wird erweitert, nicht ersetzt
+    url2 = Jitsi._join_url("https://meet.jit.si/Raum#config.prejoinConfig.enabled=true", "Bot")
+    assert "config.prejoinConfig.enabled=true" in url2
+    assert "config.defaultLanguage=" in url2
 
 
 # --------------------------------------------------------------------------- API-Schlüssel
@@ -186,6 +239,72 @@ def test_bot_records_webrtc_meeting(tmp_path):
         web.shutdown()
 
 
+def test_jitsi_adapter_join_and_leave(tmp_path):
+    """Jitsi-Adapter gegen einen lokalen Stub: Prejoin → Meeting → Verlassen."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import Jitsi
+
+        url = f"http://127.0.0.1:{web.server_port}/jitsi_stub.html"
+        statuses = []
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Jitsi()
+
+            # Beitritt: Prejoin ausfüllen und Join klicken
+            adapter.join(page, url, "Koprotokoll", 10, statuses.append)
+            assert not adapter.ended(page)
+
+            # Allein-Erkennung: Stub zeigt Teilnehmerzahl 1
+            assert adapter.alone(page)
+
+            # Teilnehmerzahl auf 2 setzen → nicht mehr allein
+            page.evaluate("window.__setParticipants(2)")
+            assert not adapter.alone(page)
+
+            # Verlassen
+            adapter.leave(page)
+            assert adapter.ended(page)
+            browser.close()
+    finally:
+        web.shutdown()
+
+
+def test_jitsi_adapter_denied(tmp_path):
+    """Jitsi-Adapter: Passwort-geschützter Raum wird als abgelehnt erkannt."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import BotError, Jitsi
+
+        url = f"http://127.0.0.1:{web.server_port}/jitsi_stub.html?denied=1"
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Jitsi()
+            with pytest.raises(BotError, match="abgelehnt"):
+                adapter.join(page, url, "Koprotokoll", 5, lambda s: None)
+            browser.close()
+    finally:
+        web.shutdown()
+
+
 # --------------------------------------------------------------------------- Google
 class FakeGoogle:
     """Ersetzt google._http: simuliert Token-Endpunkt, Kalender und Gmail."""
@@ -244,7 +363,7 @@ def test_google_oauth_calendar_autojoin_and_recap(client, monkeypatch):
     # Callback ist ohne Schlüssel erreichbar, prüft aber den OAuth-Status
     assert client.get("/api/integrations/google/callback?code=c&state=falsch", headers=REMOTE).status_code == 400
     r = client.get(f"/api/integrations/google/callback?code=c&state={state}", headers=REMOTE, follow_redirects=False)
-    assert r.status_code in (302, 307) and r.headers["location"] == "/#integrations"
+    assert r.status_code in (302, 307) and r.headers["location"] == "/"
     st = client.get("/api/integrations/google").json()
     assert st["connected"] and st["email"] == "ich@example.com"
 
@@ -282,3 +401,121 @@ def test_build_recap_escapes_html():
     assert subject == "Meeting-Zusammenfassung: <b>Plan</b>"
     assert "&lt;b&gt;Plan&lt;/b&gt;" in html and "x &lt; y" in html and "<b>Plan</b>" not in html
     assert "- Doku" in text and "http://localhost:8000/#meeting=3" in text
+
+
+# --------------------------------------------------------------------------- Microsoft
+class FakeMicrosoft:
+    """Ersetzt microsoft._http: simuliert Token-Endpunkt und Microsoft Graph Kalender."""
+
+    def __init__(self, events):
+        self.events, self.calls = events, []
+
+    def __call__(self, method, url, *, form=None, body=None, token=None):
+        self.calls.append((method, url))
+        if url == microsoft_mod.TOKEN_URL:
+            claims = base64.urlsafe_b64encode(json.dumps({"email": "ich@example.com"}).encode()).decode().rstrip("=")
+            out = {"access_token": "at", "expires_in": 3600, "id_token": f"x.{claims}.y"}
+            if form.get("grant_type") == "authorization_code":
+                out["refresh_token"] = "rt"
+            return out
+        if url.startswith(microsoft_mod.GRAPH_BASE + "/me/calendarview"):
+            assert token == "at"
+            return {"value": self.events}
+        return {}
+
+
+def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
+    now = time.time()
+    events = [
+        {"id": "m1", "subject": "Team-Weekly", "isCancelled": False,
+         "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 3600)},
+         "responseStatus": {"response": "accepted"},
+         # Absage eines Kollegen darf den Bot nicht verhindern
+         "attendees": [{"emailAddress": {"address": "kollege@example.com"},
+                        "status": {"response": "declined"}},
+                       {"emailAddress": {"address": "ich@example.com"},
+                        "status": {"response": "accepted"}}],
+         "onlineMeeting": {"joinUrl": "https://meet.jit.si/TeamWeekly"}},
+        {"id": "m2", "subject": "Abgelehnt", "isCancelled": False,
+         "responseStatus": {"response": "declined"},
+         "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 900)},
+         "attendees": [{"emailAddress": {"address": "ich@example.com"},
+                        "status": {"response": "declined"}}]},
+        {"id": "m3", "subject": "Abgesagt", "isCancelled": True,
+         "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 900)}},
+    ]
+    fake = FakeMicrosoft(events)
+    monkeypatch.setattr(microsoft_mod, "_http", fake)
+
+    with make_ms_client(tmp_path) as c:
+        st = c.get("/api/integrations/microsoft").json()
+        assert st["configured"] and not st["connected"]
+        assert st["redirect_uri"].endswith("/api/integrations/microsoft/callback")
+
+        r = c.get("/api/integrations/microsoft/connect", follow_redirects=False)
+        assert r.status_code in (302, 307)
+        loc = r.headers["location"]
+        assert loc.startswith(microsoft_mod.AUTH_URL) and "Calendars.Read" in loc
+        state = loc.split("state=")[1].split("&")[0]
+
+        # Falscher Status wird abgelehnt, richtiger führt zur Verbindung
+        assert c.get("/api/integrations/microsoft/callback?code=c&state=falsch",
+                     headers=REMOTE).status_code == 400
+        r = c.get(f"/api/integrations/microsoft/callback?code=c&state={state}",
+                  headers=REMOTE, follow_redirects=False)
+        assert r.status_code in (302, 307) and r.headers["location"] == "/"
+        st = c.get("/api/integrations/microsoft").json()
+        assert st["connected"] and st["email"] == "ich@example.com"
+
+        created = c.post("/api/integrations/google/sync").json()["created"]
+        titles = [b["title"] for b in created]
+        assert "Team-Weekly" in titles
+        assert "Abgelehnt" not in titles and "Abgesagt" not in titles
+        weekly = next(b for b in created if b["title"] == "Team-Weekly")
+        assert weekly["platform"] == "jitsi"
+        assert weekly["join_at"] == pytest.approx(now + 240, abs=5)
+
+        # Verschobener Termin bekommt einen neuen Bot, unveränderter keinen zweiten
+        assert c.post("/api/integrations/google/sync").json()["created"] == []
+        events[0]["start"] = {"dateTime": _iso(now + 600)}
+        moved = c.post("/api/integrations/google/sync").json()["created"]
+        assert [b["title"] for b in moved] == ["Team-Weekly"]
+
+        c.delete("/api/integrations/microsoft")
+        assert not c.get("/api/integrations/microsoft").json()["connected"]
+
+
+def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):
+    now = time.time()
+    events = [
+        {"id": "m1", "subject": "Team-Weekly", "isCancelled": False,
+         "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 3600)},
+         "attendees": [], "onlineMeeting": {"joinUrl": "https://meet.jit.si/TeamWeekly"}},
+        {"id": "m2", "subject": "Abgelehnt", "isCancelled": False,
+         "responseStatus": {"response": "declined"},
+         "start": {"dateTime": _iso(now + 3600)}, "end": {"dateTime": _iso(now + 7200)},
+         "attendees": [{"emailAddress": {"address": "ich@example.com"},
+                        "status": {"response": "declined"}}]},
+        {"id": "m3", "subject": "Abgesagt", "isCancelled": True,
+         "start": {"dateTime": _iso(now + 9000)}, "end": {"dateTime": _iso(now + 9600)}},
+    ]
+    monkeypatch.setattr(microsoft_mod, "_http", FakeMicrosoft(events))
+
+    with make_ms_client(tmp_path) as c:
+        # Vor der Verbindung: keine Termine (Quelle nicht erreichbar)
+        assert c.get("/api/upcoming").json() == []
+
+        # Verbinden
+        r = c.get("/api/integrations/microsoft/connect", follow_redirects=False)
+        state = r.headers["location"].split("state=")[1].split("&")[0]
+        c.get(f"/api/integrations/microsoft/callback?code=c&state={state}", headers=REMOTE)
+
+        upcoming = c.get("/api/upcoming").json()
+        assert [e["title"] for e in upcoming] == ["Team-Weekly", "Abgelehnt"]  # Abgesagt fehlt
+        weekly = upcoming[0]
+        assert weekly["platform"] == "jitsi" and weekly["will_join"] is True
+        assert weekly["meeting_url"] == "https://meet.jit.si/TeamWeekly"
+        assert weekly["reason"] == ""
+        declined = upcoming[1]
+        assert declined["will_join"] is False  # abgelehnt = kein Bot
+        assert declined["reason"] == "abgelehnt – kein Bot"

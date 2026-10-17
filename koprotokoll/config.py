@@ -38,6 +38,10 @@ class Settings:
     google_client_secret: str = field(default_factory=lambda: _env("KOPROTOKOLL_GOOGLE_CLIENT_SECRET", ""))
     calendar_poll_seconds: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_CALENDAR_POLL", "60")))
 
+    # Microsoft-Integration (Kalender + Mail) – OAuth-Client aus der Azure-App-Registrierung.
+    microsoft_client_id: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_ID", ""))
+    microsoft_client_secret: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_SECRET", ""))
+
     # Meeting-Bot (tritt Meetings als Teilnehmer bei).
     bot_name: str = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_NAME", "Koprotokoll"))
     bot_headless: bool = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_HEADLESS", "1") != "0")
@@ -45,6 +49,13 @@ class Settings:
     bot_silence_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_SILENCE_MINUTES", "10")))
     bot_max_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_MAX_MINUTES", "180")))
     bot_admit_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_ADMIT_MINUTES", "10")))
+
+    # Eigene Jitsi-Instanzen (kommagetrennte Hostnames) zusätzlich zu meet.jit.si.
+    jitsi_hosts: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            h.strip().lower() for h in _env("KOPROTOKOLL_JITSI_HOSTS", "").split(",") if h.strip()
+        )
+    )
 
     @property
     def db_path(self) -> Path:
