@@ -495,10 +495,11 @@ $("#bot-form").addEventListener("submit", async (e) => {
 async function openIntegrations() {
   showView("integrations");
   if (location.hash.split("?")[0] !== "#integrations") history.replaceState(null, "", "#integrations");
-  const err = new URLSearchParams(location.hash.split("?")[1] || "").get("google_error");
-  if (err) alert(`Google-Verbindung abgebrochen: ${err}`);
+  const params = new URLSearchParams(location.hash.split("?")[1] || "");
+  const err = params.get("google_error") || params.get("microsoft_error");
+  if (err) alert(`Anmeldung abgebrochen: ${err}`);
   renderBots();
-  await Promise.all([renderGoogle(), renderKeys(), renderHooks()]);
+  await Promise.all([renderGoogle(), renderMicrosoft(), renderKeys(), renderHooks()]);
 }
 
 async function renderGoogle() {
@@ -547,6 +548,77 @@ async function renderGoogle() {
       } }, "Trennen")));
 }
 
+function msAdvanced(g, open) {
+  const id = h("input", { placeholder: "Client-ID" }),
+    secret = h("input", { placeholder: "Client-Secret", type: "password" });
+  return h("details", open ? { open: true } : {},
+    h("summary", { class: "muted small" }, "Erweiterte Einstellungen (Client-ID / Secret)"),
+    h("p", { class: "muted small" }, "Weiterleitungs-URI in der Azure-App-Registrierung eintragen, unter „API-Berechtigungen“ Calendars.Read + Mail.Send hinzufügen:"),
+    h("pre", {}, g.redirect_uri),
+    h("div", { class: "stack" }, id, secret, h("button", { onclick: async () => {
+      await api("/api/integrations/microsoft/client", jsonOpts("PUT", { client_id: id.value, client_secret: secret.value }));
+      renderMicrosoft();
+    } }, "Speichern")));
+}
+
+async function renderMicrosoft() {
+  const g = await api("/api/integrations/microsoft");
+  const box = $("#microsoft-box");
+  if (!g.configured) {
+    box.replaceChildren(
+      h("p", { class: "muted small" }, "Für die Anbindung wird eine einmalige Azure-App-Registrierung benötigt – die Zugangsdaten kommen unten unter „Erweiterte Einstellungen“."),
+      msAdvanced(g, true));
+    return;
+  }
+  if (!g.connected) {
+    box.replaceChildren(
+      h("p", { class: "muted small" }, "Verbinde dein Microsoft-/Outlook-Konto: Der Bot tritt dann automatisch deinen Kalender-Meetings bei, und nach jedem Meeting kommt die Zusammenfassung per Mail."),
+      h("button", { class: "primary", onclick: () => { window.location = withKey("/api/integrations/microsoft/connect"); } }, "Mit Microsoft verbinden"),
+      msAdvanced(g, false));
+    return;
+  }
+  const toggle = (key, label) => {
+    const cb = h("input", { type: "checkbox" });
+    cb.checked = !!g.settings[key];
+    cb.addEventListener("change", () => api("/api/integrations/microsoft/settings", jsonOpts("PATCH", { [key]: cb.checked })));
+    return h("label", { class: "switch" }, cb, label);
+  };
+  const sync = g.last_sync?.at ? `Letzter Abgleich: ${new Date(g.last_sync.at * 1000).toLocaleTimeString("de-DE")}${g.last_sync.error ? ` – Fehler: ${g.last_sync.error}` : ""}` : "";
+  box.replaceChildren(...[
+    h("p", {}, "Verbunden als ", h("b", {}, g.email || "?")),
+    toggle("auto_join", "Bot tritt Kalender-Meetings mit Meet-/Jitsi-Link automatisch bei"),
+    sync ? h("p", { class: "muted small" }, sync) : null,
+    h("div", { class: "row" },
+      h("button", { class: "danger", onclick: async () => {
+        if (!confirm("Microsoft-Verbindung trennen?")) return;
+        await api("/api/integrations/microsoft", { method: "DELETE" }); renderMicrosoft();
+      } }, "Trennen")),
+    msAdvanced(g, false),
+  ].filter(Boolean));
+}
+
+async function renderUpcoming() {
+  const events = await api("/api/upcoming");
+  const list = $("#upcoming-list");
+  if (!events.length) {
+    list.replaceChildren(h("li", { class: "muted small" },
+      "Keine Termine in den nächsten 7 Tagen. Verbundene Kalender werden automatisch angezeigt."));
+    return;
+  }
+  list.replaceChildren(...events.map((e) => {
+    const when = new Date(e.start * 1000).toLocaleString("de-DE",
+      { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    return h("li", {},
+      h("span", { class: "grow" },
+        h("b", {}, e.title),
+        h("div", { class: "muted small" }, `${when} · ${e.label}`),
+        h("div", { class: "muted small" },
+          e.will_join ? `Bot wird eingeplant (${e.platform})` : e.reason,
+          e.meeting_url ? " · " : "",
+          e.meeting_url ? h("a", { href: e.meeting_url, target: "_blank", rel: "noreferrer" }, "Link") : null)));
+  }));
+}
+
 async function renderKeys() {
   const keys = await api("/api/keys");
   $("#key-list").replaceChildren(...keys.map((k) => h("li", {},
@@ -588,6 +660,7 @@ async function route() {
   const m = hash.match(/^#meeting=(\d+)/);
   if (m) await openMeeting(+m[1]).catch(() => showView("empty"));
   else if (hash.startsWith("#integrations")) await openIntegrations();
+  else { showView("empty"); await renderUpcoming(); }
 }
 window.addEventListener("hashchange", route);
 

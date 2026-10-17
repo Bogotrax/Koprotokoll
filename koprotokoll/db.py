@@ -81,6 +81,14 @@ CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS calendar_sources (
+    id      INTEGER PRIMARY KEY,
+    kind    TEXT NOT NULL,
+    label   TEXT NOT NULL,
+    config  TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at REAL NOT NULL
+);
 """
 
 
@@ -285,6 +293,46 @@ class Database:
             rows = self._conn.execute(sql, (*params, limit)).fetchall()
         return [_bot(r) for r in rows]
 
+    # -- Kalenderquellen --------------------------------------------------------------------
+    def add_calendar_source(self, kind: str, label: str, config: dict,
+                            enabled: bool = True) -> int:
+        with self._lock, self._conn:
+            cur = self._conn.execute(
+                "INSERT INTO calendar_sources (kind, label, config, enabled, created_at)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (kind, label, json.dumps(config or {}, ensure_ascii=False),
+                 1 if enabled else 0, time.time()),
+            )
+            return int(cur.lastrowid)
+
+    def list_calendar_sources(self) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM calendar_sources ORDER BY id").fetchall()
+        return [_calendar_source(r) for r in rows]
+
+    def get_calendar_source(self, source_id: int) -> dict | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM calendar_sources WHERE id = ?", (source_id,)).fetchone()
+        return _calendar_source(row) if row else None
+
+    def update_calendar_source(self, source_id: int, **fields: Any) -> bool:
+        if "config" in fields and not isinstance(fields["config"], str):
+            fields["config"] = json.dumps(fields["config"], ensure_ascii=False)
+        if "enabled" in fields:
+            fields["enabled"] = 1 if fields["enabled"] else 0
+        cols = ", ".join(f"{k} = ?" for k in fields)
+        with self._lock, self._conn:
+            cur = self._conn.execute(f"UPDATE calendar_sources SET {cols} WHERE id = ?",
+                                     (*fields.values(), source_id))
+        return cur.rowcount > 0
+
+    def delete_calendar_source(self, source_id: int) -> bool:
+        with self._lock, self._conn:
+            return self._conn.execute(
+                "DELETE FROM calendar_sources WHERE id = ?", (source_id,)).rowcount > 0
+
     # -- Einstellungen / Integrationen ------------------------------------------------------
     def get_kv(self, key: str, default: Any = None) -> Any:
         with self._lock:
@@ -303,6 +351,13 @@ class Database:
 def _bot(row: sqlite3.Row) -> dict:
     d = dict(row)
     d["meta"] = json.loads(d["meta"] or "{}")
+    return d
+
+
+def _calendar_source(row: sqlite3.Row) -> dict:
+    d = dict(row)
+    d["config"] = json.loads(d["config"] or "{}")
+    d["enabled"] = bool(d["enabled"])
     return d
 
 

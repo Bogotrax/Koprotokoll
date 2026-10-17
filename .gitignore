@@ -5,3 +5,5 @@ venv/
 data/
 .pytest_cache/
 data-livetest*/
+# Lokale Testskripte mit Zugangsdaten
+microsoft-test.ps1

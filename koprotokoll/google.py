@@ -185,3 +185,62 @@ class GoogleClient:
             msg.add_alternative(html, subtype="html")
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
         return _http("POST", GMAIL_SEND, body={"raw": raw}, token=self._access_token())
+
+
+class GoogleCalendarSource:
+    """Kalenderquelle, die Google-Termine als ``CalendarEvent`` liefert."""
+
+    name = "google"
+    label = "Google Kalender"
+
+    def __init__(self, client: GoogleClient):
+        self.client = client
+
+    def enabled(self) -> bool:
+        return self.client.connected() and self.client.settings().get("auto_join", True)
+
+    def events(self, time_min: float, time_max: float) -> list["CalendarEvent"]:
+        from .calendar_source import CalendarEvent
+
+        out: list[CalendarEvent] = []
+        for item in self.client.events(time_min, time_max):
+            if item.get("status") == "cancelled":
+                continue
+            start_ts = _google_ts(item.get("start"))
+            if start_ts is None:  # ganztägige Termine überspringen
+                continue
+            end_ts = _google_ts(item.get("end"))
+            attendees = [a["email"] for a in (item.get("attendees") or [])
+                         if a.get("email") and not a.get("resource")]
+            me = next((a for a in (item.get("attendees") or []) if a.get("self")), None)
+            response = None
+            if me:
+                response = {"accepted": "accepted", "declined": "declined",
+                            "tentative": "tentative"}.get(me.get("responseStatus"))
+            meeting_url = item.get("hangoutLink") or ""
+            if not meeting_url:
+                for ep in (item.get("conferenceData") or {}).get("entryPoints", []):
+                    if ep.get("entryPointType") == "video":
+                        meeting_url = ep.get("uri") or ""
+                        break
+            out.append(CalendarEvent(
+                id=item.get("id", ""),
+                title=item.get("summary") or "Meeting",
+                start=start_ts,
+                end=end_ts,
+                all_day=False,
+                location=item.get("location") or "",
+                description=item.get("description") or "",
+                attendees=attendees,
+                self_response=response,
+                meeting_url=meeting_url,
+                source=self.name,
+            ))
+        return out
+
+
+def _google_ts(value: dict | None) -> float | None:
+    if not value or "dateTime" not in value:
+        return None
+    from datetime import datetime
+    return datetime.fromisoformat(value["dateTime"].replace("Z", "+00:00")).timestamp()

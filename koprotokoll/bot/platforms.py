@@ -41,19 +41,27 @@ def detect_platform(url: str, jitsi_hosts: Iterable[str] = ()) -> str | None:
 
 
 def find_meeting_url(event: dict, jitsi_hosts: Iterable[str] = ()) -> tuple[str, str] | None:
-    """Meeting-Link aus einem Google-Kalender-Ereignis ziehen → (url, plattform)."""
-    candidates = [event.get("hangoutLink") or ""]
+    """Meeting-Link aus einem Kalendertermin ziehen → (url, plattform).
+
+    Akzeptiert Google-spezifische Felder (``hangoutLink``, ``conferenceData``)
+    sowie die generischen Felder ``location``/``description`` – so finden
+    ICS-, Graph- und Google-Termine ihren Meeting-Link.
+    """
+    candidates = [event.get("hangoutLink") or "", event.get("meeting_url") or ""]
     for ep in (event.get("conferenceData") or {}).get("entryPoints", []):
         if ep.get("entryPointType") == "video":
             candidates.append(ep.get("uri") or "")
     candidates += [event.get("location") or "", event.get("description") or ""]
-    for text in candidates:
-        for name, pattern in PATTERNS.items():
-            if name == "jitsi":
-                pattern = jitsi_pattern(jitsi_hosts)
-            m = pattern.search(text)
-            if m:
-                return m.group(0), name
+    # Zwei Durchläufe: erst nach unterstützten Plattformen suchen (z. B. Jitsi in
+    # der Beschreibung, obwohl ein Teams-Link im Termin steht), dann alle anderen.
+    for want_supported in (True, False):
+        for text in candidates:
+            for name, pattern in PATTERNS.items():
+                if name == "jitsi":
+                    pattern = jitsi_pattern(jitsi_hosts)
+                m = pattern.search(text)
+                if m and (not want_supported or name in SUPPORTED):
+                    return m.group(0), name
     return None
 
 

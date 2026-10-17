@@ -38,6 +38,10 @@ class Settings:
     google_client_secret: str = field(default_factory=lambda: _env("KOPROTOKOLL_GOOGLE_CLIENT_SECRET", ""))
     calendar_poll_seconds: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_CALENDAR_POLL", "60")))
 
+    # Microsoft-Integration (Kalender + Mail) – OAuth-Client aus der Azure-App-Registrierung.
+    microsoft_client_id: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_ID", ""))
+    microsoft_client_secret: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_SECRET", ""))
+
     # Meeting-Bot (tritt Meetings als Teilnehmer bei).
     bot_name: str = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_NAME", "Koprotokoll"))
     bot_headless: bool = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_HEADLESS", "1") != "0")

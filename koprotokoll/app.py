@@ -16,12 +16,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import auth
-from .bot.platforms import SUPPORTED, detect_platform
+from .bot.platforms import SUPPORTED, detect_platform, find_meeting_url
+from .calendar_source import CalendarEvent
 from .config import Settings
 from .db import Database
 from .events import EVENTS, EventBus
 from .export import export
-from .google import GoogleClient, GoogleError
+from .google import GoogleCalendarSource, GoogleClient, GoogleError
+from .microsoft import MicrosoftCalendarSource, MicrosoftClient, MicrosoftError
 from .pipeline import Pipeline
 from .recap import RecapMailer
 from .scheduler import CalendarScheduler
@@ -77,6 +79,17 @@ class GoogleSettingsIn(BaseModel):
     recap_to_attendees: bool | None = None
 
 
+class MicrosoftClientIn(BaseModel):
+    client_id: str
+    client_secret: str
+
+
+class MicrosoftSettingsIn(BaseModel):
+    auto_join: bool | None = None
+    send_recap: bool | None = None
+    recap_to_attendees: bool | None = None
+
+
 def create_app(settings: Settings | None = None, transcriber: Transcriber | None = None,
                diarizer: Diarizer | None = None, llm: LLM | None = None,
                google: GoogleClient | None = None, background: bool = True) -> FastAPI:
@@ -92,11 +105,18 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     events = EventBus(db)
     pipeline = Pipeline(db, s.media_dir, transcriber, diarizer, llm, events)
     google = google or GoogleClient(s, db)
+    microsoft = MicrosoftClient(s, db)
     events.subscribe(RecapMailer(google, s.public_url))
     from .bot.runner import BotManager
 
     bots = BotManager(s, db, pipeline, events, tick_seconds=5.0 if background else 3600)
-    calendar = CalendarScheduler(db, google, s.calendar_poll_seconds, s.jitsi_hosts)
+
+    def build_sources() -> list:
+        sources: list = [GoogleCalendarSource(google), MicrosoftCalendarSource(microsoft)]
+        # Weitere gespeicherte Quellen-Arten (z. B. CalDAV) hier ergänzen.
+        return sources
+
+    calendar = CalendarScheduler(db, build_sources(), s.calendar_poll_seconds, s.jitsi_hosts)
     if background:
         calendar.start()
 
@@ -332,7 +352,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
             google.exchange(code, state)
         except (GoogleError, OSError) as e:
             raise HTTPException(400, str(e)) from e
-        return RedirectResponse("/#integrations")
+        return RedirectResponse("/")
 
     @api.patch("/api/integrations/google/settings", tags=["google"])
     def google_settings(g: GoogleSettingsIn):
@@ -351,6 +371,87 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     def google_disconnect():
         google.disconnect()
         return {"ok": True}
+
+    # -- Microsoft (Kalender + Mail) ------------------------------------------------------
+    @api.get("/api/integrations/microsoft", tags=["microsoft"])
+    def microsoft_status():
+        return {**microsoft.status(), "last_sync": calendar.last_sync}
+
+    @api.put("/api/integrations/microsoft/client", tags=["microsoft"])
+    def microsoft_client(c: MicrosoftClientIn):
+        microsoft.set_client(c.client_id, c.client_secret)
+        return microsoft.status()
+
+    @api.get("/api/integrations/microsoft/connect", tags=["microsoft"])
+    def microsoft_connect():
+        try:
+            return RedirectResponse(microsoft.auth_url())
+        except MicrosoftError as e:
+            raise HTTPException(400, str(e)) from e
+
+    @public.get("/api/integrations/microsoft/callback", include_in_schema=False)
+    def microsoft_callback(code: str = "", state: str = "", error: str = ""):
+        if error:
+            return RedirectResponse("/#integrations?" + urllib.parse.urlencode({"microsoft_error": error[:100]}))
+        try:
+            microsoft.exchange(code, state)
+        except (MicrosoftError, OSError) as e:
+            raise HTTPException(400, str(e)) from e
+        return RedirectResponse("/")
+
+    @api.patch("/api/integrations/microsoft/settings", tags=["microsoft"])
+    def microsoft_settings(m: MicrosoftSettingsIn):
+        return microsoft.update_settings(**m.model_dump(exclude_none=True))
+
+    @api.delete("/api/integrations/microsoft", tags=["microsoft"])
+    def microsoft_disconnect():
+        microsoft.disconnect()
+        return {"ok": True}
+
+    # -- Kommende Termine (Anzeige) --------------------------------------------------------
+    @api.get("/api/upcoming", tags=["calendars"])
+    def upcoming(days: int = 7):
+        """Termine der nächsten Tage aus allen Kalenderquellen, inkl. Link-Erkennung.
+
+        Anzeigefenster: 7 Tage (Entscheidung 2026-10-17). Die Bot-Einplanung bleibt
+        wie gehabt auf ~15 Minuten vor Terminbeginn beschränkt.
+        """
+        days = max(1, min(days, 30))
+        now = time.time()
+        out: list[dict] = []
+        for source in build_sources():
+            try:
+                source_events = source.events(now, now + days * 86400)
+            except Exception:  # noqa: BLE001 – nicht verbundene/defekte Quellen nicht anzeigen
+                continue
+            for e in source_events:
+                found = find_meeting_url(
+                    {"location": e.location, "description": e.description,
+                     "meeting_url": e.meeting_url or ""}, s.jitsi_hosts)
+                url, platform = found or ("", "")
+                will_join = bool(found and platform in SUPPORTED and source.enabled()
+                                 and not e.all_day and e.self_response != "declined")
+                if will_join:
+                    reason = ""
+                elif e.self_response == "declined":
+                    reason = "abgelehnt – kein Bot"
+                elif e.all_day:
+                    reason = "ganztägig – kein Bot"
+                elif not found:
+                    reason = "kein Meeting-Link erkannt"
+                elif platform not in SUPPORTED:
+                    reason = f"„{platform}“ wird noch nicht unterstützt"
+                else:
+                    reason = "Auto-Join ist deaktiviert"
+                out.append({
+                    "id": e.id, "title": e.title, "start": e.start, "end": e.end,
+                    "all_day": e.all_day, "source": source.name, "label": source.label,
+                    "meeting_url": url, "platform": platform,
+                    "self_response": e.self_response,
+                    "will_join": will_join, "reason": reason,
+                })
+        out.sort(key=lambda x: x["start"])
+        return out
 
     app.include_router(public)
     app.include_router(api)

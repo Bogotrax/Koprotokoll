@@ -170,7 +170,8 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] Meeting-Bot für Google Meet und Jitsi, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
-- [ ] Kalender aus **Outlook**, **CalDAV/ICS** (Nextcloud, iCloud, Thunderbird …)
+- [x] Kalender aus **Outlook/Microsoft** (auch Privatkonten) – Termine der nächsten 7 Tage auf der Startseite
+- [ ] **CalDAV** (Nextcloud, iCloud, Thunderbird …) als weitere Kalenderquelle
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
 - [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
 - [ ] Meeting-Bot für **BigBlueButton**, **Microsoft Teams** und **Zoom**

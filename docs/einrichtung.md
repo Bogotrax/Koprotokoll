@@ -54,6 +54,41 @@ Ton einer beliebigen Webseite auf (z. B. Webinar).
 Berechtigungen: Kalender nur lesen, Gmail nur senden. Nach jedem Bot-Meeting geht die
 Zusammenfassung an dich (optional auch an alle Termin-Teilnehmer).
 
+## Microsoft Kalender & Outlook einrichten
+
+> **Kurz:** Für Privatkonten (outlook.com, live.com) und Microsoft-365-Konten. Die Anmeldung
+> erfolgt per **„Mit Microsoft verbinden"** (OAuth) – ganz ohne Kalender-Links zu kopieren.
+
+1. Im [Azure-Portal](https://portal.azure.com) anmelden – geht auch mit einem privaten
+   Microsoft- oder GitHub-Konto, ein Azure-Abonnement ist nicht nötig.
+2. **App-Registrierungen** → **Neue Registrierung**:
+   - **Name:** z. B. `Koprotokoll`
+   - **Unterstützte Kontotypen:** unbedingt
+     **„Any Entra ID Tenant + Personal Microsoft accounts"** („Alle Mandanten + persönliche
+     Microsoft-Konten") wählen – sonst schlägt die Anmeldung mit privaten Konten fehl
+     (Fehler „Mandant … nicht vorhanden").
+   - **Umleitungs-URI:** Plattform **„Web"**, URI
+     `http://localhost:8000/api/integrations/microsoft/callback`
+     (bzw. `<KOPROTOKOLL_PUBLIC_URL>/api/integrations/microsoft/callback`)
+3. **Client-ID** kopieren (Übersicht → „Application (client) ID").
+4. **Client-Secret** anlegen: **Certificates & secrets** → **New client secret** →
+   den **Wert** (Spalte „Value") **sofort kopieren**.
+   > **Falle:** In der Tabelle stehen „Secret ID" und „Value" nebeneinander. Gebraucht wird
+   > der **Wert** – die Secret ID führt zum Fehler `AADSTS7000215: Invalid client secret`.
+   > Der Wert wird nur einmal angezeigt; ist er verloren, hilft nur ein neues Secret.
+5. **API permissions** → **Add a permission** → **Microsoft Graph** →
+   **Delegated permissions** → `Calendars.Read` und `Mail.Send` hinzufügen.
+6. In Koprotokoll unter **Integrationen & API** → Microsoft-Karte → **Erweiterte Einstellungen**
+   Client-ID und Secret eintragen (oder per `KOPROTOKOLL_MICROSOFT_CLIENT_ID` /
+   `KOPROTOKOLL_MICROSOFT_CLIENT_SECRET`) und **Mit Microsoft verbinden**.
+
+Berechtigungen: Kalender nur lesen, Mail nur senden. Die Termine der nächsten **7 Tage**
+siehst du direkt auf der Startseite – inklusive Hinweis, ob dafür ein Bot eingeplant wird.
+Kurz vor Terminbeginn (~15 Minuten) legt Koprotokoll den Bot automatisch an.
+
+> **Für Organisationen:** Die App-Registrierung ist einmalig pro Mandant – am besten durch
+> die IT erstellen lassen. Privatnutzende registrieren ihre eigene App (Schritte oben).
+
 ## Konfiguration
 
 | Variable | Standard | Bedeutung |
@@ -70,6 +105,7 @@ Zusammenfassung an dich (optional auch an alle Termin-Teilnehmer).
 | `KOPROTOKOLL_PUBLIC_URL` | `http://localhost:8000` | Basis-URL für OAuth-Weiterleitung und Links in E-Mails |
 | `KOPROTOKOLL_REQUIRE_KEY` | `0` | `1` = API-Schlüssel auch für lokale Anfragen |
 | `KOPROTOKOLL_GOOGLE_CLIENT_ID` / `…_SECRET` | – | OAuth-Client (alternativ in der Oberfläche) |
+| `KOPROTOKOLL_MICROSOFT_CLIENT_ID` / `…_SECRET` | – | OAuth-Client (alternativ unter „Erweiterte Einstellungen“) |
 | `KOPROTOKOLL_BOT_NAME` | `Koprotokoll` | Anzeigename des Bots im Meeting |
 | `KOPROTOKOLL_BOT_HEADLESS` | `1` | `0` = sichtbares Browserfenster |
 | `KOPROTOKOLL_BOT_CHROME` | – | Pfad zu Chrome/Chromium statt Playwright-Chromium |
