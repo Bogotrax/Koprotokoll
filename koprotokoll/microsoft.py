@@ -214,12 +214,10 @@ class MicrosoftCalendarSource:
             attendees = [a.get("emailAddress", {}).get("address", "")
                          for a in (item.get("attendees") or [])]
             attendees = [e for e in attendees if e]
-            me = next((a for a in (item.get("attendees") or [])
-                       if a.get("status", {}).get("response") in ("accepted", "declined", "tentative")), None)
-            response = None
-            if me:
-                response = {"accepted": "accepted", "declined": "declined",
-                            "tentative": "tentative"}.get(me.get("status", {}).get("response"))
+            # Eigene Antwort steht in responseStatus, nicht bei den anderen Teilnehmenden.
+            response = {"accepted": "accepted", "organizer": "accepted", "declined": "declined",
+                        "tentativelyAccepted": "tentative"}.get(
+                (item.get("responseStatus") or {}).get("response"))
             meeting_url = ""
             online = item.get("onlineMeeting") or {}
             if online.get("joinUrl"):

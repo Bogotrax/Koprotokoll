@@ -429,11 +429,15 @@ def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
     events = [
         {"id": "m1", "subject": "Team-Weekly", "isCancelled": False,
          "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 3600)},
-         "attendees": [{"emailAddress": {"address": "ich@example.com"},
-                        "status": {"response": "accepted"}},
-                       {"emailAddress": {"address": "kollege@example.com"}}],
+         "responseStatus": {"response": "accepted"},
+         # Absage eines Kollegen darf den Bot nicht verhindern
+         "attendees": [{"emailAddress": {"address": "kollege@example.com"},
+                        "status": {"response": "declined"}},
+                       {"emailAddress": {"address": "ich@example.com"},
+                        "status": {"response": "accepted"}}],
          "onlineMeeting": {"joinUrl": "https://meet.jit.si/TeamWeekly"}},
         {"id": "m2", "subject": "Abgelehnt", "isCancelled": False,
+         "responseStatus": {"response": "declined"},
          "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 900)},
          "attendees": [{"emailAddress": {"address": "ich@example.com"},
                         "status": {"response": "declined"}}]},
@@ -471,6 +475,12 @@ def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
         assert weekly["platform"] == "jitsi"
         assert weekly["join_at"] == pytest.approx(now + 240, abs=5)
 
+        # Verschobener Termin bekommt einen neuen Bot, unveränderter keinen zweiten
+        assert c.post("/api/integrations/google/sync").json()["created"] == []
+        events[0]["start"] = {"dateTime": _iso(now + 600)}
+        moved = c.post("/api/integrations/google/sync").json()["created"]
+        assert [b["title"] for b in moved] == ["Team-Weekly"]
+
         c.delete("/api/integrations/microsoft")
         assert not c.get("/api/integrations/microsoft").json()["connected"]
 
@@ -482,6 +492,7 @@ def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):
          "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 3600)},
          "attendees": [], "onlineMeeting": {"joinUrl": "https://meet.jit.si/TeamWeekly"}},
         {"id": "m2", "subject": "Abgelehnt", "isCancelled": False,
+         "responseStatus": {"response": "declined"},
          "start": {"dateTime": _iso(now + 3600)}, "end": {"dateTime": _iso(now + 7200)},
          "attendees": [{"emailAddress": {"address": "ich@example.com"},
                         "status": {"response": "declined"}}]},

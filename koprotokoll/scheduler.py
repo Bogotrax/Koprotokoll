@@ -85,7 +85,7 @@ class CalendarScheduler:
             url, platform = found
             bot_id = self.db.create_bot(
                 url, platform, event.title or "Meeting", max(now, start - JOIN_EARLY_S),
-                calendar_event_id=f"{source.name}:{event.id}",
+                calendar_event_id=f"{source.name}:{event.id}@{int(start)}",  # verschoben → neuer Bot
                 meta={"calendar_event_id": event.id, "calendar_source": source.name,
                       "event_start": start, "event_end": end, "attendees": event.attendees},
             )
