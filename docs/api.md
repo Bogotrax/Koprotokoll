@@ -27,8 +27,35 @@ curl -H "Authorization: Bearer $KEY" "http://localhost:8000/api/meetings/1/expor
 | Suche | `GET /api/search?q=` |
 | Bots | `POST/GET /api/bots`, `GET/DELETE /api/bots/{id}` |
 | Webhooks | `GET/POST /api/webhooks`, `DELETE /api/webhooks/{id}`, `POST /api/webhooks/{id}/test` |
-| Schlüssel | `GET/POST /api/keys`, `DELETE /api/keys/{id}` |
+| Transkription (OpenAI-kompatibel) | `POST /v1/audio/transcriptions` |
+| Schlüssel | `GET/POST /api/keys`, `DELETE /api/keys/{id}`, `GET /api/tokens` (Schlüssel prüfen) |
 | Google | `GET/DELETE /api/integrations/google`, `PUT …/client`, `GET …/connect`, `PATCH …/settings`, `POST …/sync` |
+
+## Diktieren: `/v1/audio/transcriptions` (OpenAI-kompatibel)
+
+Für kurze Aufnahmen – etwa aus **Kodiktat** oder jedem Programm, das die OpenAI-Transkriptions-API
+spricht. Es wird **kein Meeting angelegt**, keine Sprechererkennung und keine Zusammenfassung
+gemacht; die Datei liegt nur während der Anfrage in `data/tmp` und wird danach gelöscht.
+
+| Feld (multipart) | Bedeutung |
+|---|---|
+| `file` | Pflicht. WAV (16 kHz wird direkt gelesen), sonst alles, was ffmpeg kann (mp3, m4a, ogg, webm …) |
+| `response_format` | `json` (Standard, `{"text": …}`), `text`, `verbose_json` (mit `segments`, `start`/`end` in Sekunden), `srt`, `vtt` |
+| `language` | optional, wird in `verbose_json` zurückgegeben; Parakeet erkennt die Sprache selbst |
+| `model`, `prompt`, `temperature` | werden angenommen und ignoriert – es gibt die eine eingestellte Engine |
+
+```bash
+curl http://localhost:8000/v1/audio/transcriptions -H "Authorization: Bearer $KEY" \
+     -F file=@notiz.wav -F response_format=text
+```
+
+`GET /api/tokens` antwortet mit `200`, wenn der Schlüssel gültig ist, sonst mit `401` – so prüft
+Kodiktat die Verbindung.
+
+**Kodiktat einrichten:** Anbieter „Heimserver“ wählen, als **Basis-URL** die Adresse des
+Koprotokoll-Servers ohne `/v1` eintragen (z. B. `http://192.168.1.20:8000`) und als **Schlüssel**
+einen API-Schlüssel aus „Integrationen & API“ (`kp_…`). Läuft Koprotokoll auf einem anderen
+Rechner, ihn mit `--host 0.0.0.0` starten oder hinter einen Reverse-Proxy mit HTTPS stellen.
 
 ## Webhooks
 

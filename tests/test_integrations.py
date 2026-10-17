@@ -77,6 +77,67 @@ def test_require_key_also_locally(client, monkeypatch):
     assert client.get("/api/meetings").status_code == 401
 
 
+# --------------------------------------------------------------------------- OpenAI-kompatible Transkription
+def _transcribe(c, tmp_path, headers=None, filename="audio.wav", **data):
+    files = {"file": (filename, wav_bytes(tmp_path, seconds=2), "audio/wav")}
+    return c.post("/v1/audio/transcriptions", files=files, data=data, headers=headers or {})
+
+
+def test_transcription_formats(client, tmp_path):
+    r = _transcribe(client, tmp_path)
+    assert r.status_code == 200 and r.json()["text"].startswith("Guten Morgen zusammen")
+    assert client.get("/api/meetings").json() == []  # kein Meeting angelegt
+
+    text = _transcribe(client, tmp_path, response_format="text")
+    assert text.headers["content-type"].startswith("text/plain")
+    assert text.text.strip() == r.json()["text"]
+
+    verbose = _transcribe(client, tmp_path, response_format="verbose_json", language="de").json()
+    assert verbose["language"] == "de" and verbose["duration"] == 2.0
+    assert verbose["text"] == r.json()["text"]
+    seg = verbose["segments"][0]
+    assert seg["id"] == 0 and seg["start"] == 0.0 and seg["end"] > seg["start"] and seg["text"]
+
+    srt = _transcribe(client, tmp_path, response_format="srt").text
+    assert srt.startswith("1\n00:00:00,000 --> ") and "Budget" in srt
+    vtt = _transcribe(client, tmp_path, response_format="vtt").text
+    assert vtt.startswith("WEBVTT\n\n00:00:00.000 --> ")
+
+    bad = _transcribe(client, tmp_path, response_format="xml")
+    assert bad.status_code == 400 and "response_format" in bad.json()["detail"]
+    assert _transcribe(client, tmp_path, filename="notiz.txt").status_code == 400
+    # keine Aufnahme bleibt liegen
+    assert list((tmp_path / "tmp").iterdir()) == []
+    assert list((tmp_path / "media").iterdir()) == []
+
+
+def test_transcription_needs_key_like_kodiktat(client, tmp_path):
+    assert _transcribe(client, tmp_path, headers=REMOTE).status_code == 401
+    assert _transcribe(client, tmp_path, headers={**REMOTE, "Authorization": "Bearer kp_falsch"}).status_code == 401
+    assert client.get("/api/tokens", headers=REMOTE).status_code == 401
+
+    key = client.post("/api/keys", json={"name": "Kodiktat"}).json()["key"]
+    auth = {**REMOTE, "Authorization": f"Bearer {key}"}
+    assert client.get("/api/tokens", headers=auth).status_code == 200
+    # genau so, wie Kodiktat sendet: multipart mit file, model, response_format=text
+    r = _transcribe(client, tmp_path, headers=auth, filename="recording.wav",
+                    model="parakeet", response_format="text")
+    assert r.status_code == 200 and r.text.startswith("Guten Morgen")
+    assert list((tmp_path / "tmp").iterdir()) == []
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg fehlt")
+def test_transcription_converts_other_formats(client, tmp_path):
+    import subprocess
+
+    src = tmp_path / "ton.ogg"
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "sine=f=440:d=1", str(src)], check=True)
+    r = client.post("/v1/audio/transcriptions", files={"file": ("ton.ogg", src.read_bytes(), "audio/ogg")},
+                    data={"response_format": "verbose_json"})
+    assert r.status_code == 200 and r.json()["duration"] == 1.0
+    assert list((tmp_path / "tmp").iterdir()) == []
+
+
 # --------------------------------------------------------------------------- Webhooks
 class Receiver:
     def __init__(self):
