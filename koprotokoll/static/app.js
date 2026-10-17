@@ -553,8 +553,21 @@ function msAdvanced(g, open) {
     secret = h("input", { placeholder: "Client-Secret", type: "password" });
   return h("details", open ? { open: true } : {},
     h("summary", { class: "muted small" }, "Erweiterte Einstellungen (Client-ID / Secret)"),
-    h("p", { class: "muted small" }, "Weiterleitungs-URI in der Azure-App-Registrierung eintragen, unter „API-Berechtigungen“ Calendars.Read + Mail.Send hinzufügen:"),
-    h("pre", {}, g.redirect_uri),
+    h("p", { class: "muted small" }, "Einmalige Einrichtung im Azure-Portal (portal.azure.com) – die Anmeldung dort geht auch mit einem privaten Microsoft- oder GitHub-Konto, ein Abonnement ist nicht nötig:"),
+    h("ol", { class: "muted small" },
+      h("li", {}, "In der Suche nach „App-Registrierungen“ suchen → „Neue Registrierung“, Name z. B. „Koprotokoll“."),
+      h("li", {}, h("b", {}, "Unterstützte Kontotypen: „Any Entra ID Tenant + Personal Microsoft accounts“ (der unterste Eintrag)"),
+        " – nur damit sind auch Privatkonten (outlook.com, live.com) erlaubt. Falsch gewählt erscheint später der Fehler „Mandant … nicht vorhanden“."),
+      h("li", {}, "Umleitungs-URI: Plattform „Web“ auswählen und diese Adresse eintragen:"),
+      h("pre", {}, g.redirect_uri),
+      h("li", {}, "„Registrieren“ → danach die ", h("b", {}, "Client-ID („Application (client) ID“)"),
+        " aus der Übersicht kopieren und unten eintragen."),
+      h("li", {}, "Client-Secret anlegen: „Certificates & secrets“ → „New client secret“ → nach dem Anlegen den ",
+        h("b", {}, "Wert aus der Spalte „Value“ sofort kopieren"),
+        " – in der Tabelle stehen „Secret ID“ und „Value“ nebeneinander, gebraucht wird der Wert. Er wird nur einmal angezeigt; bei Verlust hilft nur ein neues Secret."),
+      h("li", {}, "„API permissions“ → „Add a permission“ → „Microsoft Graph“ → „Delegated permissions“ → ",
+        h("code", {}, "Calendars.Read"), " und ", h("code", {}, "Mail.Send"), " hinzufügen."),
+      h("li", {}, "Hier unten Client-ID und Secret eintragen und speichern, dann „Mit Microsoft verbinden“.")),
     h("div", { class: "stack" }, id, secret, h("button", { onclick: async () => {
       await api("/api/integrations/microsoft/client", jsonOpts("PUT", { client_id: id.value, client_secret: secret.value }));
       renderMicrosoft();
