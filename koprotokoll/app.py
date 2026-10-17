@@ -11,7 +11,7 @@ import urllib.parse
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -29,10 +29,13 @@ from .recap import RecapMailer
 from .scheduler import CalendarScheduler
 from .speech import Diarizer, ParakeetTranscriber, SherpaDiarizer, Transcriber
 from .summarize import LLM, ask
+from .transcriptions import FORMATS, render, transcribe_upload
 
 log = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
 ALLOWED_EXT = {".mp3", ".mp4", ".wav", ".m4a", ".webm", ".ogg", ".oga", ".opus", ".flac", ".aac", ".mov", ".mkv"}
+# Zusätzliche Endungen, die OpenAI bei /v1/audio/transcriptions annimmt.
+TRANSCRIBE_EXT = ALLOWED_EXT | {".mpeg", ".mpga"}
 
 
 class MeetingPatch(BaseModel):
@@ -251,6 +254,27 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     def search(q: str, meeting_id: int | None = None):
         return db.search(q, meeting_id)
 
+    # -- OpenAI-kompatible Transkription (z. B. für Kodiktat) ------------------------------
+    @api.post("/v1/audio/transcriptions", tags=["openai"])
+    def openai_transcribe(file: UploadFile = File(...), model: str = Form(""), language: str | None = Form(None),
+                          prompt: str = Form(""), response_format: str = Form("json"),
+                          temperature: float | None = Form(None)):
+        # model, prompt und temperature werden angenommen, aber ignoriert: es gibt nur die eine Engine.
+        if response_format not in FORMATS:
+            raise HTTPException(400, f"Unbekanntes response_format: {response_format} "
+                                     f"(erlaubt: {', '.join(FORMATS)})")
+        ext = Path(file.filename or "aufnahme.wav").suffix.lower() or ".wav"
+        if ext not in TRANSCRIBE_EXT:
+            raise HTTPException(400, f"Dateityp {ext} wird nicht unterstützt")
+        try:
+            words, duration = transcribe_upload(file.file, ext, transcriber, s.data_dir / "tmp")
+        except RuntimeError as e:
+            raise HTTPException(400, str(e)) from e
+        body, mime = render(words, duration, response_format, language)
+        if isinstance(body, dict):
+            return JSONResponse(body)
+        return Response(body, media_type=mime)
+
     # -- Bots (Teilnehmer in Online-Meetings) -------------------------------------------
     @api.post("/api/bots", status_code=201, tags=["bots"])
     def create_bot(b: BotIn):
@@ -288,6 +312,11 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     @api.get("/api/keys", tags=["admin"])
     def list_keys():
         return db.list_api_keys()
+
+    @api.get("/api/tokens", tags=["admin"])
+    def check_token():
+        """Schlüsselprüfung für Kodiktat: 200 mit gültigem Schlüssel, sonst 401."""
+        return {"ok": True}
 
     @api.post("/api/keys", status_code=201, tags=["admin"])
     def create_key(k: KeyIn):
