@@ -169,6 +169,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
 - [x] Meeting-Bot für Google Meet und Jitsi, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
+- [ ] **Signal** (nächstes Vorhaben): Gruppenanrufe aufnehmen (Bot) und Zusammenfassungen sowie Statusmeldungen per Signal verschicken
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [x] Kalender aus **Outlook/Microsoft** (auch Privatkonten) – Termine der nächsten 7 Tage auf der Startseite
 - [ ] **CalDAV** (Nextcloud, iCloud, Thunderbird …) als weitere Kalenderquelle
