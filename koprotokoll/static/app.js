@@ -499,7 +499,7 @@ async function openIntegrations() {
   const err = params.get("google_error") || params.get("microsoft_error");
   if (err) alert(`Anmeldung abgebrochen: ${err}`);
   renderBots();
-  await Promise.all([renderGoogle(), renderMicrosoft(), renderKeys(), renderHooks()]);
+  await Promise.all([renderGoogle(), renderMicrosoft(), renderSignal(), renderKeys(), renderHooks()]);
 }
 
 async function renderGoogle() {
@@ -608,6 +608,48 @@ async function renderMicrosoft() {
       } }, "Trennen")),
     msAdvanced(g, false),
   ].filter(Boolean));
+}
+
+async function renderSignal() {
+  const g = await api("/api/integrations/signal");
+  const box = $("#signal-box");
+  const num = h("input", { placeholder: "+491701234567", value: g.settings.recipient || "" });
+  const toggle = (key, label) => {
+    const cb = h("input", { type: "checkbox" });
+    cb.checked = !!g.settings[key];
+    cb.addEventListener("change", () => api("/api/integrations/signal/settings", jsonOpts("PATCH", { [key]: cb.checked })));
+    return h("label", { class: "switch" }, cb, label);
+  };
+  const parts = [
+    h("p", { class: "muted small" },
+      "Zusammenfassungen nach dem Meeting kommen per Signal auf dein Handy – über einen lokalen signal-cli-Dienst, alles bleibt auf diesem Rechner."),
+  ];
+  if (g.connected) {
+    parts.push(h("p", {}, "Signal verbunden als ", h("b", {}, g.number || "?")));
+  } else {
+    parts.push(h("p", { class: "muted small" },
+      "Noch nicht verbunden: Starte den Signal-Dienst (docker compose -f docker-compose.signal.yml up -d) ",
+      "und verknüpfe dein Signal-Konto als Sekundärgerät (Signal → Einstellungen → Verbundene Geräte)."));
+  }
+  parts.push(
+    h("div", { class: "row" }, num, h("button", { onclick: async () => {
+      try {
+        await api("/api/integrations/signal/settings", jsonOpts("PATCH", { recipient: num.value }));
+        renderSignal();
+      } catch (err) { alert(err.message); }
+    } }, "Nummer speichern")),
+    toggle("send_recap", "Zusammenfassung nach dem Meeting per Signal an mich"),
+    h("div", { class: "row" },
+      h("button", { class: "primary", onclick: async (e) => {
+        e.target.disabled = true;
+        try {
+          await api("/api/integrations/signal/test", { method: "POST" });
+          alert("Testnachricht verschickt – sie sollte jetzt auf deinem Handy sein.");
+        } catch (err) { alert(err.message); }
+        e.target.disabled = false;
+      } }, "Testnachricht schicken")),
+  );
+  box.replaceChildren(...parts.filter(Boolean));
 }
 
 async function renderUpcoming() {

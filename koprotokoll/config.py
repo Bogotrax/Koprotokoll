@@ -42,6 +42,9 @@ class Settings:
     microsoft_client_id: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_ID", ""))
     microsoft_client_secret: str = field(default_factory=lambda: _env("KOPROTOKOLL_MICROSOFT_CLIENT_SECRET", ""))
 
+    # Signal-Integration (Recap & Statusmeldungen) – lokaler signal-cli-Dienst.
+    signal_api_url: str = field(default_factory=lambda: _env("KOPROTOKOLL_SIGNAL_URL", "http://127.0.0.1:8090").rstrip("/"))
+
     # Meeting-Bot (tritt Meetings als Teilnehmer bei).
     bot_name: str = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_NAME", "Koprotokoll"))
     bot_headless: bool = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_HEADLESS", "1") != "0")

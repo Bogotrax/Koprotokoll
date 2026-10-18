@@ -6,6 +6,7 @@ import html
 import logging
 
 from .google import GoogleClient, GoogleError
+from .signal import SignalClient, SignalError
 from .summarize import fmt_time
 
 log = logging.getLogger(__name__)
@@ -74,3 +75,29 @@ class RecapMailer:
             log.info("Recap für Meeting %s an %s verschickt", meeting["id"], ", ".join(to))
         except (GoogleError, OSError) as e:
             log.warning("Recap-Versand fehlgeschlagen: %s", e)
+
+
+class SignalRecap:
+    """Abonniert meeting.completed und schickt die Zusammenfassung per Signal.
+
+    Wie ``RecapMailer``, nur als DSGVO-freundlicher Kanal über den lokalen
+    signal-cli-Dienst: nach jeder Bot-Aufnahme geht der Klartext an die
+    hinterlegte Empfängernummer.
+    """
+
+    def __init__(self, signal: SignalClient, public_url: str):
+        self.signal, self.public_url = signal, public_url
+
+    def __call__(self, event: str, meeting: dict) -> None:
+        if event != "meeting.completed" or (meeting.get("meta") or {}).get("source") != "bot":
+            return
+        settings = self.signal.settings()
+        if not settings["send_recap"] or not settings.get("recipient"):
+            return
+        _, text, _ = build_recap(meeting, self.public_url)
+        try:
+            self.signal.send(text)
+            log.info("Recap für Meeting %s per Signal an %s verschickt",
+                     meeting["id"], settings["recipient"])
+        except (SignalError, OSError) as e:
+            log.warning("Signal-Recap fehlgeschlagen: %s", e)

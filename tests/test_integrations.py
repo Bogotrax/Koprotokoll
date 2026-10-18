@@ -15,9 +15,11 @@ from fastapi.testclient import TestClient
 
 import koprotokoll.google as google_mod
 import koprotokoll.microsoft as microsoft_mod
+import koprotokoll.signal as signal_mod
 from koprotokoll.app import create_app
 from koprotokoll.bot.platforms import detect_platform, find_meeting_url
 from koprotokoll.config import Settings
+from koprotokoll.db import Database
 from koprotokoll.recap import build_recap
 from test_koprotokoll import FakeDiarizer, FakeTranscriber, NoLLM, wait_done, wav_bytes
 
@@ -508,3 +510,109 @@ def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):
         declined = upcoming[1]
         assert declined["will_join"] is False  # abgelehnt = kein Bot
         assert declined["reason"] == "abgelehnt – kein Bot"
+
+
+# --------------------------------------------------------------------------- Signal
+class FakeSignal:
+    """Ersetzt signal._http: simuliert den lokalen signal-cli-Dienst."""
+
+    def __init__(self, accounts=None):
+        self.accounts = list(accounts) if accounts is not None else ["+4917673793524"]
+        self.sent = []
+
+    def __call__(self, method, url, *, body=None):
+        if url.endswith("/v1/accounts"):
+            return self.accounts
+        if url.endswith("/v2/send"):
+            self.sent.append(body)
+            return {"timestamp": 1717}
+        return {}
+
+
+def test_signal_settings_and_status(monkeypatch, tmp_path):
+    fake = FakeSignal(accounts=[])
+    monkeypatch.setattr(signal_mod, "_http", fake)
+    with make_client(tmp_path) as c:
+        # Ohne verknüpftes Konto: nicht verbunden, Voreinstellungen
+        st = c.get("/api/integrations/signal").json()
+        assert not st["connected"] and st["number"] is None
+        assert st["settings"]["send_recap"] is True and st["settings"]["recipient"] == ""
+
+        # Empfängernummer speichern (wird auf +49… normalisiert)
+        r = c.patch("/api/integrations/signal/settings", json={"recipient": "+49 176 7379 3524"})
+        assert r.status_code == 200
+        assert r.json()["recipient"] == "+4917673793524"
+        assert r.json()["send_recap"] is True
+
+        # Ungültige Nummer wird mit deutscher Meldung abgelehnt
+        r = c.patch("/api/integrations/signal/settings", json={"recipient": "017673793524"})
+        assert r.status_code == 400 and "internationalen Format" in r.json()["detail"]
+
+        # Verknüpftes Konto erscheint im Status
+        fake.accounts = ["+4917673793524"]
+        st = c.get("/api/integrations/signal").json()
+        assert st["connected"] and st["number"] == "+4917673793524"
+        assert st["api_url"] == "http://127.0.0.1:8090"
+
+        # Recap per Signal abschalten
+        r = c.patch("/api/integrations/signal/settings", json={"send_recap": False})
+        assert r.json()["send_recap"] is False and r.json()["recipient"] == "+4917673793524"
+
+
+def test_signal_send(monkeypatch, tmp_path):
+    fake = FakeSignal(accounts=["+4917673793524"])
+    monkeypatch.setattr(signal_mod, "_http", fake)
+    s = Settings(data_dir=tmp_path)
+    sig = signal_mod.SignalClient(s, Database(s.db_path))
+    sig.update_settings(recipient="+49 176 7379 3524")
+    sig.send("Hallo")
+    assert fake.sent == [{"message": "Hallo", "number": "+4917673793524",
+                          "recipients": ["+4917673793524"]}]
+
+    # Ohne verknüpftes Konto scheitert der Versand mit deutscher Meldung
+    fake.accounts = []
+    with pytest.raises(signal_mod.SignalError, match="nicht verbunden"):
+        sig.send("Hallo")
+
+
+def test_signal_recap_after_bot_meeting(monkeypatch, tmp_path):
+    fake = FakeSignal(accounts=["+4917673793524"])
+    monkeypatch.setattr(signal_mod, "_http", fake)
+    with make_client(tmp_path) as c:
+        c.patch("/api/integrations/signal/settings", json={"recipient": "+49 176 7379 3524"})
+        app = c.app
+        meeting = {"id": 8, "title": "Teamrunde", "duration": 65, "status": "done",
+                   "summary": {"overview": "Besprochen.", "decisions": ["Go"]},
+                   "meta": {"source": "bot", "attendees": []}}
+        app.state.events.emit("meeting.completed", meeting)
+        app.state.events.emit("meeting.completed", {**meeting, "meta": {"source": "upload"}})  # kein Recap
+        app.state.events.join()
+        assert len(fake.sent) == 1
+        body = fake.sent[0]
+        assert body["recipients"] == ["+4917673793524"]
+        assert "Teamrunde" in body["message"] and "Go" in body["message"] and "#meeting=8" in body["message"]
+
+        # Schalter aus: nichts wird geschickt
+        c.patch("/api/integrations/signal/settings", json={"send_recap": False})
+        app.state.events.emit("meeting.completed", meeting)
+        app.state.events.join()
+        assert len(fake.sent) == 1
+
+
+def test_signal_test_endpoint(monkeypatch, tmp_path):
+    fake = FakeSignal(accounts=["+4917673793524"])
+    monkeypatch.setattr(signal_mod, "_http", fake)
+    with make_client(tmp_path) as c:
+        # Ohne hinterlegte Empfängernummer: deutsche Fehlermeldung
+        r = c.post("/api/integrations/signal/test")
+        assert r.status_code == 400 and "Empfängernummer" in r.json()["detail"]
+
+        c.patch("/api/integrations/signal/settings", json={"recipient": "+4917673793524"})
+        r = c.post("/api/integrations/signal/test")
+        assert r.status_code == 200 and r.json() == {"ok": True}
+        assert len(fake.sent) == 1 and fake.sent[0]["recipients"] == ["+4917673793524"]
+
+        # Nicht verbunden: ebenfalls deutsche Fehlermeldung
+        fake.accounts = []
+        r = c.post("/api/integrations/signal/test")
+        assert r.status_code == 400 and "nicht verbunden" in r.json()["detail"]

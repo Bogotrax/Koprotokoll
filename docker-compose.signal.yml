@@ -1,0 +1,20 @@
+# Signal-Dienst für Koprotokoll (Recap & Statusmeldungen per Signal).
+#
+# Starten:      docker compose -f docker-compose.signal.yml up -d
+# Anschließen: In der Koprotokoll-Oberfläche unter „Integrationen → Signal“
+#               den QR-Code mit dem Signal-Handy scannen (Sekundärgerät).
+#
+# Der Dienst läuft lokal unter http://127.0.0.1:8090 – es verlässt nichts
+# den Rechner. Zugangsdaten und Schlüssel liegen unter ./data/signal-cli
+# (git-ignoriert).
+services:
+  signal-cli-rest-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    container_name: koprotokoll-signal
+    environment:
+      - MODE=json-rpc
+    ports:
+      - "8090:8080"
+    volumes:
+      - "./data/signal-cli:/home/.local/share/signal-cli"
+    restart: unless-stopped

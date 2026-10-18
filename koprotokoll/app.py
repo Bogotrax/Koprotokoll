@@ -25,8 +25,9 @@ from .export import export
 from .google import GoogleCalendarSource, GoogleClient, GoogleError
 from .microsoft import MicrosoftCalendarSource, MicrosoftClient, MicrosoftError
 from .pipeline import Pipeline
-from .recap import RecapMailer
+from .recap import RecapMailer, SignalRecap
 from .scheduler import CalendarScheduler
+from .signal import SignalClient, SignalError
 from .speech import Diarizer, ParakeetTranscriber, SherpaDiarizer, Transcriber
 from .summarize import LLM, ask
 
@@ -90,6 +91,11 @@ class MicrosoftSettingsIn(BaseModel):
     recap_to_attendees: bool | None = None
 
 
+class SignalSettingsIn(BaseModel):
+    send_recap: bool | None = None
+    recipient: str | None = None
+
+
 def create_app(settings: Settings | None = None, transcriber: Transcriber | None = None,
                diarizer: Diarizer | None = None, llm: LLM | None = None,
                google: GoogleClient | None = None, background: bool = True) -> FastAPI:
@@ -106,7 +112,9 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     pipeline = Pipeline(db, s.media_dir, transcriber, diarizer, llm, events)
     google = google or GoogleClient(s, db)
     microsoft = MicrosoftClient(s, db)
+    signal = SignalClient(s, db)
     events.subscribe(RecapMailer(google, s.public_url))
+    events.subscribe(SignalRecap(signal, s.public_url))
     from .bot.runner import BotManager
 
     bots = BotManager(s, db, pipeline, events, tick_seconds=5.0 if background else 3600)
@@ -406,6 +414,27 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     @api.delete("/api/integrations/microsoft", tags=["microsoft"])
     def microsoft_disconnect():
         microsoft.disconnect()
+        return {"ok": True}
+
+    # -- Signal (Recap & Statusmeldungen) ---------------------------------------------
+    @api.get("/api/integrations/signal", tags=["signal"])
+    def signal_status():
+        return signal.status()
+
+    @api.patch("/api/integrations/signal/settings", tags=["signal"])
+    def signal_settings(sig: SignalSettingsIn):
+        try:
+            return signal.update_settings(**sig.model_dump(exclude_none=True))
+        except SignalError as e:
+            raise HTTPException(400, str(e)) from e
+
+    @api.post("/api/integrations/signal/test", tags=["signal"])
+    def signal_test():
+        """Schickt eine Testnachricht an die hinterlegte Empfängernummer."""
+        try:
+            signal.send("Testnachricht von Koprotokoll – die Signal-Anbindung funktioniert. ✅")
+        except SignalError as e:
+            raise HTTPException(400, str(e)) from e
         return {"ok": True}
 
     # -- Kommende Termine (Anzeige) --------------------------------------------------------
