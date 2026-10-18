@@ -419,11 +419,19 @@ def test_teams_adapter_join_and_leave(tmp_path):
             assert "waiting_admit" in statuses  # Lobby wurde durchlaufen
             assert not adapter.ended(page)
 
-            # Allein-Erkennung: Stub zeigt Teilnehmerzahl 1
+            # Allein-Erkennung: keine Kacheln + Hinweistext → allein
             assert adapter.alone(page)
 
-            # Teilnehmerzahl auf 2 setzen → nicht mehr allein
+            # Zwei Kacheln (echtes DOM-Muster: Rolle menuitem) → nicht allein
             page.evaluate("window.__setParticipants(2)")
+            assert not adapter.alone(page)
+
+            # Nur die eigene Kachel → allein
+            page.evaluate("window.__setTiles(['Koprotokoll'])")
+            assert adapter.alone(page)
+
+            # Nur eine fremde Kachel → nicht allein
+            page.evaluate("window.__setTiles(['Sebastian Schade'])")
             assert not adapter.alone(page)
 
             # Verlassen
