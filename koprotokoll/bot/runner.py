@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 CAPTURE_JS = (Path(__file__).parent / "capture.js").read_text(encoding="utf-8")
 ACTIVE = ("joining", "waiting_admit", "recording", "stopping")
 SOUND_LEVEL = 0.003  # RMS-Schwelle für „es wird gesprochen“
-ALONE_GRACE_S = 120
+ALONE_GRACE_S = 15
 
 
 class BotManager:
