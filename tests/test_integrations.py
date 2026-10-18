@@ -444,23 +444,31 @@ def test_teams_ui_labels_match_live_capture():
     from koprotokoll.bot.platforms import Teams
 
     t = Teams()
-    # Interstitial: Browser-Beitritt (Name) und Fließtext-Variante
+    # Interstitial: Accessible Name des Buttons (die Überschrift darin ist ein
+    # eigener String und trägt nicht zum Accessible Name bei)
+    assert t.BROWSER.search("Join meeting from this browser")
+    assert t.BROWSER.search("Continue on this browser")
     assert t.BROWSER.search("Treten Sie der Besprechung über diesen Browser bei")
     assert t.BROWSER.search("In diesem Browser fortfahren")
-    assert t.BROWSER.search("Continue on this browser")
     # Prejoin
-    assert t.JOIN.search("Jetzt teilnehmen")
     assert t.JOIN.search("Join now")
+    assert t.JOIN.search("Jetzt teilnehmen")
+    assert t.NO_MEDIA.search("Continue without audio or video")
     assert t.NO_MEDIA.search("Ohne Audio oder Video fortfahren")
+    assert t.NAME_FIELD.search("Type your name")
     assert t.NAME_FIELD.search("Geben Sie Ihren Namen ein")
     # Lobby
+    assert t.WAITING.search("Hi, Koprotokoll Bot. Someone will let you in shortly.")
     assert t.WAITING.search("Hallo, Koprotokoll Bot. Jemand wird Sie einlassen, "
                             "wenn die Besprechung beginnt.")
-    # In-Meeting: Verlassen (nur title, kein aria-label)
+    # In-Meeting: Verlassen (title ohne aria-label; #hangup-button ist der Anker)
     assert t.LEAVE.search("Verlassen")
-    assert t.LEAVE.search("Leave")
-    # Allein und Beendet
+    # Allein
     assert t.ALONE.search("Warten auf weitere Teilnehmer...")
+    # Beendet
+    assert t.ENDED.search("Did you leave by mistake?")
+    assert t.ENDED.search("Rejoin the call")
+    assert t.ENDED.search("Returning to Teams meetings")
     assert t.ENDED.search("Sind Sie aus Versehen gegangen?")
     assert t.ENDED.search("Erneut am Anruf teilnehmen")
 

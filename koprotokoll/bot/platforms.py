@@ -328,6 +328,7 @@ class Teams(Adapter):
     JOIN = re.compile(r"^(join now|join|jetzt teilnehmen)$", re.I)
     BROWSER = re.compile(r"(continue on this browser|join on (the )?web instead"
                          r"|continue without (an )?app|use the web app instead"
+                         r"|join meeting from this browser"
                          r"|in diesem browser fortfahren"
                          r"|treten sie der besprechung über diesen browser bei)", re.I)
     NO_MEDIA = re.compile(r"(ohne audio oder video fortfahren"
@@ -342,6 +343,7 @@ class Teams(Adapter):
     ENDED = re.compile(r"(you have left the meeting|you've left the meeting"
                        r"|(this )?meeting has ended|the call ended"
                        r"|you('ve| have) been removed|return to home screen"
+                       r"|did you leave by mistake|rejoin the call|returning to teams meetings"
                        r"|sind sie aus versehen gegangen"
                        r"|zu teams-besprechungen zurückkehren"
                        r"|erneut am anruf teilnehmen)", re.I)
@@ -349,6 +351,7 @@ class Teams(Adapter):
                        r"|warten auf weitere teilnehmer)", re.I)
     WAITING = re.compile(r"(waiting for someone to let you in|please wait"
                          r"|waiting for (the )?(host|organizer|moderator)"
+                         r"|someone will let you in"
                          r"|jemand wird sie einlassen)", re.I)
 
     @staticmethod
@@ -385,26 +388,44 @@ class Teams(Adapter):
         if hint:
             raise BotError(f"Beitritt abgelehnt: {hint}")
 
-        # Prejoin: optionalen Audio/Video-Hinweisdialog schließen (blockiert sonst
-        # die Bedienung), Namen setzen, Mikrofon und Kamera ausschalten.
-        self._dismiss_no_media(page)
-        name_box = page.get_by_role("textbox", name=self.NAME_FIELD).first
-        if not _visible(name_box, 3000):
-            name_box = page.locator("input[type=text][aria-label*='name' i], input[placeholder*='name' i]").first
-        if _visible(name_box, 10000):
-            name_box.fill(bot_name)
+        # Prejoin: Die Seite lädt langsam und der Audio/Video-Hinweisdialog kann
+        # mehrfach erscheinen – beides in einer Warteschleife abfangen, dann
+        # Namen setzen, Mikrofon und Kamera ausschalten.
+        name_box = None
+        deadline_pre = time.time() + 30
+        while time.time() < deadline_pre:
+            self._dismiss_no_media(page)
+            for loc in (page.get_by_role("textbox", name=self.NAME_FIELD).first,
+                        page.locator("input[type=text][aria-label*='name' i], input[placeholder*='name' i]").first):
+                if _visible(loc, 500):
+                    name_box = loc
+                    break
+            if name_box is not None:
+                break
+        if name_box is None:
+            raise BotError(self._body_hint(page) or "Namensfeld nicht gefunden")
+        name_box.fill(bot_name)
 
         for pattern in (r"^(mute|turn off|stop|disable) (the )?(microphone|mic)$",
                         r"^(mute|turn off|stop|disable) (the )?(camera|video)$"):
             btn = page.get_by_role("button", name=re.compile(pattern, re.I)).first
-            if _visible(btn, 2000):
+            if _visible(btn, 1000):
                 btn.click()
 
-        self._dismiss_no_media(page)
+        # Beitritts-Button ist bis Name und geschlossenen Dialog deaktiviert;
+        # der Dialog kann erneut erscheinen und den Klick blockieren.
         join_btn = page.get_by_role("button", name=self.JOIN).first
         if not _visible(join_btn, 20000):
             raise BotError(self._body_hint(page) or "Beitreten-Schaltfläche nicht gefunden")
-        join_btn.click()
+        for _ in range(6):
+            self._dismiss_no_media(page)
+            try:
+                join_btn.click(timeout=3000)
+                break
+            except Exception:  # noqa: BLE001 – Button noch deaktiviert, erneut versuchen
+                continue
+        else:
+            raise BotError(self._body_hint(page) or "Beitreten-Schaltfläche nicht bedienbar")
 
         # Auf Einlass warten (Lobby) oder direkten Beitritt erkennen.
         deadline = time.time() + admit_timeout
