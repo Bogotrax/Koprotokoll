@@ -354,6 +354,10 @@ class Teams(Adapter):
                          r"|someone will let you in"
                          r"|jemand wird sie einlassen)", re.I)
 
+    def __init__(self) -> None:
+        self._bot_name = ""
+        self._tiles_seen = False
+
     @staticmethod
     def _join_url(url: str) -> str:
         """Meeting-URL um den anonymen Beitritt erweitern (``anon=true``).
@@ -367,6 +371,7 @@ class Teams(Adapter):
         return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query, doseq=True)))
 
     def join(self, page, url: str, bot_name: str, admit_timeout: float, on_status) -> None:
+        self._bot_name = bot_name
         page.goto(self._join_url(url), wait_until="domcontentloaded")
         self._dismiss(page)
 
@@ -448,9 +453,34 @@ class Teams(Adapter):
         return bool(self._body_hint(page, self.ENDED))
 
     def alone(self, page) -> bool:
+        """Allein-Erkennung über Teilnehmer-Kacheln (sprachunabhängig).
+
+        Live beobachtet (teams.live.com, Light-Meetings): Jede Teilnehmerkachel
+        ist ein ``menuitem``-Element; sind alle anderen weg, verschwinden die
+        Kacheln ganz und ein Hinweistext erscheint. Erst wenn Kacheln gesehen
+        wurden, gilt dieses Signal – sonst Fallback auf Text/Zähler.
+        """
+        tiles = self._tile_names(page)
+        if tiles:
+            self._tiles_seen = True
+        if tiles is not None and self._tiles_seen:
+            if len(tiles) >= 2:
+                return False
+            if len(tiles) == 1:
+                return bool(self._bot_name) and self._bot_name in tiles[0]
+            return True
         if self._body_hint(page, self.ALONE):
             return True
         return _participants_count(page) == 1
+
+    @staticmethod
+    def _tile_names(page) -> list | None:
+        """Namen der sichtbaren Teilnehmer-Kacheln; ``None`` = nicht lesbar."""
+        try:
+            names = [t.strip() for t in page.get_by_role("menuitem").all_inner_texts()]
+            return [n for n in names if n]
+        except Exception:  # noqa: BLE001 – Kacheln sind optional
+            return None
 
     def leave(self, page) -> None:
         btn = self._leave_btn(page, 1000)

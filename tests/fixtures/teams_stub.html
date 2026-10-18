@@ -47,13 +47,16 @@
   <h1 id="lobby-text">Hallo, Gast. Jemand wird Sie einlassen, wenn die Besprechung beginnt.</h1>
 </div>
 
-<!-- In-Meeting-Ansicht -->
+<!-- In-Meeting-Ansicht (Teilnehmerkacheln wie im Original: Rolle menuitem) -->
 <div id="meeting" class="hidden">
   <div id="toolbar">
     <button id="participants-btn" role="button" aria-label="Personen"><span id="pcount">1</span> Personen</button>
     <!-- Wie im Original: kein aria-label, nur title -->
     <button id="hangup-button" title="Verlassen"><svg></svg></button>
   </div>
+  <main id="stage" aria-label="Ansicht Freigegebener Inhalt">
+    <div id="tiles"></div>
+  </main>
   <div id="alone-text">Warten auf weitere Teilnehmer...</div>
 </div>
 
@@ -103,10 +106,12 @@
     refreshJoin();
   });
 
+  let joinedName = "Gast";
+
   joinBtn.addEventListener("click", () => {
-    const name = nameInput.value.trim() || "Gast";
+    joinedName = nameInput.value.trim() || "Gast";
     document.getElementById("lobby-text").textContent =
-      "Hallo, " + name + ". Jemand wird Sie einlassen, wenn die Besprechung beginnt.";
+      "Hallo, " + joinedName + ". Jemand wird Sie einlassen, wenn die Besprechung beginnt.";
     show("lobby");
     // Lobby endet automatisch (simuliert Einlass durch einen Teilnehmer).
     setTimeout(() => show("meeting"), 4000);
@@ -114,10 +119,30 @@
 
   document.getElementById("hangup-button").addEventListener("click", () => show("left"));
 
-  // Teilnehmerzahl für Tests; allein = „Warten auf weitere Teilnehmer...“
+  // Teilnehmerkacheln wie im Original (Rolle menuitem); allein = 0 Kacheln.
+  function renderTiles(names) {
+    const tiles = document.getElementById("tiles");
+    tiles.innerHTML = "";
+    for (const n of names) {
+      const t = document.createElement("div");
+      t.setAttribute("role", "menuitem");
+      t.textContent = n;
+      tiles.appendChild(t);
+    }
+    document.getElementById("alone-text").classList.toggle("hidden", names.length > 1);
+  }
+
+  window.__setTiles = (names) => renderTiles(names);
+
+  // Teilnehmerzahl für Tests
   window.__setParticipants = (n) => {
     document.getElementById("pcount").textContent = String(n);
-    document.getElementById("alone-text").classList.toggle("hidden", n > 1);
+    const names = [];
+    if (n > 1) {
+      names.push(joinedName);
+      for (let i = 2; i <= n; i++) names.push("Teilnehmer " + i);
+    }
+    renderTiles(names);
   };
   window.__setParticipants(1);
 </script>
