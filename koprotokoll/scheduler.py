@@ -1,8 +1,12 @@
 """Kalender-Automatik: Bots für anstehende Termine mit Meeting-Link einplanen.
 
 Der Scheduler arbeitet mit einer Liste von ``CalendarSource``-Quellen
-(ICS-Abolink, Google, später Microsoft Graph …) und legt pro Termin mit
-unterstütztem Meeting-Link einen Bot an.
+(ICS-Abolink, Google, Microsoft Graph) und legt pro Termin mit
+unterstütztem Meeting-Link einen Bot an. Bots werden bis zu 24 Stunden im
+Voraus sichtbar geplant (Status ``scheduled``), beigetreten wird
+``JOIN_EARLY_S`` Sekunden vor Beginn. Entfällt ein Termin später
+(abgesagt, entfernt, kein Meeting-Link mehr), wird der geplante Bot beim
+nächsten Abgleich storniert.
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from .db import Database
 
 log = logging.getLogger(__name__)
 
-LOOKAHEAD_S = 15 * 60
+LOOKAHEAD_S = 24 * 3600
 JOIN_EARLY_S = 60
 
 
@@ -47,7 +51,7 @@ class CalendarScheduler:
                 self.last_sync = {"at": time.time(), "error": str(e)}
 
     def sync(self, now: float | None = None) -> list[int]:
-        """Termine im Fenster [jetzt-5 min, jetzt+15 min] prüfen und neue Bots anlegen."""
+        """Termine im Fenster [jetzt-5 min, jetzt+24 h] prüfen; Bots anlegen und aufräumen."""
         now = now or time.time()
         created: list[int] = []
         errors: list[str] = []
@@ -60,14 +64,23 @@ class CalendarScheduler:
                 log.warning("Kalenderquelle %s fehlgeschlagen: %s", source.name, e)
                 errors.append(f"{source.name}: {e}")
                 continue
-            created += self._plan(source, events, now)
+            made, kept = self._plan(source, events, now)
+            created += made
+            self._prune(source, kept)
         self.last_sync = {"at": now, "created": created}
         if errors:
             self.last_sync["error"] = "; ".join(errors)
         return created
 
-    def _plan(self, source: CalendarSource, events: list[CalendarEvent], now: float) -> list[int]:
+    def _plan(self, source: CalendarSource, events: list[CalendarEvent],
+              now: float) -> tuple[list[int], set[str]]:
+        """Bots für gültige Termine anlegen.
+
+        Zurück kommt ``(angelegte Bot-Ids, Schlüssel aller gültigen Termine)`` –
+        die Schlüssel braucht :meth:`_prune`, um entfallene Termine zu erkennen.
+        """
         created: list[int] = []
+        kept: set[str] = set()
         for event in events:
             if event.cancelled:
                 continue
@@ -83,6 +96,7 @@ class CalendarScheduler:
             if not found or found[1] not in SUPPORTED:
                 continue
             url, platform = found
+            kept.add(f"{source.name}:{event.id}")
             bot_id = self.db.create_bot(
                 url, platform, event.title or "Meeting", max(now, start - JOIN_EARLY_S),
                 calendar_event_id=f"{source.name}:{event.id}@{int(start)}",  # verschoben → neuer Bot
@@ -92,4 +106,19 @@ class CalendarScheduler:
             if bot_id:
                 log.info("Bot %s für „%s“ eingeplant", bot_id, event.title)
                 created.append(bot_id)
-        return created
+        return created, kept
+
+    def _prune(self, source: CalendarSource, kept: set[str]) -> None:
+        """Geplante Bots stornieren, deren Termin nicht mehr stattfindet.
+
+        Nur aufräumen, wenn die Quelle gerade erfolgreich geliefert hat –
+        ein vorübergehender Ausfall darf keine geplanten Bots kicken.
+        """
+        prefix = f"{source.name}:"
+        for bot in self.db.list_bots(("scheduled",), limit=500):
+            key = bot.get("calendar_event_id") or ""
+            if key.startswith(prefix) and key not in kept:
+                self.db.update_bot(bot["id"], status="cancelled",
+                                   error="Termin entfällt (abgesagt, entfernt oder ohne Meeting-Link)",
+                                   ended_at=time.time())
+                log.info("Bot %s storniert – Termin %s findet nicht statt", bot["id"], key)
