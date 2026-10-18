@@ -625,6 +625,54 @@ def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
         assert not c.get("/api/integrations/microsoft").json()["connected"]
 
 
+def test_scheduler_plans_ahead_and_cancels_gone_events(tmp_path):
+    """Bots werden früh sichtbar geplant; entfallene Termine werden storniert."""
+    import koprotokoll.scheduler as scheduler_mod
+    from koprotokoll.calendar_source import CalendarEvent
+    from koprotokoll.db import Database
+
+    now = time.time()
+    far = CalendarEvent(
+        id="e1", title="Später", start=now + 3 * 3600, end=now + 4 * 3600,
+        description="https://teams.live.com/meet/1234567890123?p=token")
+
+    class FakeSource:
+        name = "fake"
+        label = "Fake-Kalender"
+
+        def __init__(self):
+            self.items = [far]
+
+        def enabled(self):
+            return True
+
+        def events(self, time_min, time_max):
+            return [e for e in self.items if time_min <= e.start < time_max]
+
+    src = FakeSource()
+    db = Database(tmp_path / "t.db")
+    cal = scheduler_mod.CalendarScheduler(db, [src])
+
+    # Termin in 3 Stunden → Bot wird JETZT schon angelegt, tritt aber erst
+    # 60 Sekunden vor Beginn bei
+    created = cal.sync(now)
+    assert len(created) == 1
+    bot = db.get_bot(created[0])
+    assert bot["platform"] == "teams"
+    assert bot["status"] == "scheduled"
+    assert bot["join_at"] == pytest.approx(far.start - scheduler_mod.JOIN_EARLY_S, abs=2)
+
+    # Idempotent: erneuter Abgleich legt keinen Zwilling an
+    assert cal.sync(now) == []
+
+    # Termin wird abgesagt → der geplante Bot wird beim nächsten Abgleich storniert
+    far.cancelled = True
+    cal.sync(now)
+    stale = db.get_bot(bot["id"])
+    assert stale["status"] == "cancelled"
+    assert "entfällt" in stale["error"]
+
+
 def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):
     now = time.time()
     events = [
