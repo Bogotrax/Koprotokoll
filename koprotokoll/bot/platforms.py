@@ -10,7 +10,7 @@ from typing import Iterable
 PATTERNS = {
     "google_meet": re.compile(r"https://meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}(?:\?[^\s\"'<>]*)?", re.I),
     "zoom": re.compile(r"https://(?:[\w-]+\.)?zoom\.us/(?:j|my|w)/[^\s\"'<>]+", re.I),
-    "teams": re.compile(r"https://teams\.(?:microsoft|live)\.com/(?:l/meetup-join|meet)/[^\s\"'<>]+", re.I),
+    "teams": re.compile(r"https://teams\.(?:microsoft|live)\.com/(?:l/meetup-join|(?:v2/)?meet)/(?!meet-now(?:[/?#]|$))[^\s\"'<>]+", re.I),
     "jitsi": re.compile(r"https://meet\.jit\.si/[^\s\"'<>]+", re.I),
 }
 # Plattformen, denen der Bot beitreten kann. Zoom wird erkannt, aber noch nicht unterstützt.
@@ -37,6 +37,25 @@ def detect_platform(url: str, jitsi_hosts: Iterable[str] = ()) -> str | None:
             pattern = jitsi_pattern(jitsi_hosts)
         if pattern.match(url.strip()):
             return name
+    return None
+
+
+# Bekannte Meeting-Seiten, deren URLs aber keine Beitritts-URL sind – für klare Fehlermeldungen.
+LINK_HINTS = (
+    (re.compile(r"https://teams\.(?:microsoft|live)\.com/", re.I),
+     "Das ist kein Teams-Beitrittslink. Kopiere den Einladungslink aus der Besprechung "
+     "(…/l/meetup-join/… bzw. …/meet/…) – die Adresszeile der Vorbereitungsseite "
+     "(z. B. „meet-now“) funktioniert nicht."),
+    (re.compile(r"https://(?:[\w-]+\.)?zoom\.us/", re.I),
+     "Zoom-Links werden erkannt, aber der Beitritt ist noch nicht umgesetzt."),
+)
+
+
+def link_hint(url: str) -> str | None:
+    """Tipp, wenn die URL von einer bekannten Meeting-Seite stammt, aber kein Beitrittslink ist."""
+    for pattern, hint in LINK_HINTS:
+        if pattern.match(url.strip()):
+            return hint
     return None
 
 

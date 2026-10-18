@@ -50,6 +50,11 @@ def test_detect_platform():
     assert detect_platform("https://meet.google.com/abc-defg-hij") == "google_meet"
     assert detect_platform("https://us02web.zoom.us/j/123456?pwd=x") == "zoom"
     assert detect_platform("https://teams.microsoft.com/l/meetup-join/19%3a…") == "teams"
+    assert detect_platform("https://teams.live.com/meet/9378471055035?p=x") == "teams"
+    assert detect_platform("https://teams.live.com/v2/meet/9378471055035?p=x") == "teams"
+    # Vorbereitungsseite „Sofortbesprechung“ ist kein Beitrittslink
+    assert detect_platform("https://teams.live.com/v2/meet/meet-now") is None
+    assert detect_platform("https://teams.live.com/v2/meet/meet-now?launch=true") is None
     assert detect_platform("https://example.com/") is None
 
 
@@ -265,6 +270,13 @@ def test_bot_api_schedule_and_cancel(client):
     assert client.delete(f"/api/bots/{bot['id']}").status_code == 200
     assert client.get(f"/api/bots/{bot['id']}").json()["status"] == "cancelled"
     assert client.delete(f"/api/bots/{bot['id']}").status_code == 404
+
+
+def test_bot_rejects_teams_preparation_page(client):
+    # „Sofortbesprechung“-Vorbereitungsseite statt Einladungslink → deutscher Tipp statt Ratlosigkeit
+    r = client.post("/api/bots", json={"meeting_url": "https://teams.live.com/v2/meet/meet-now"})
+    assert r.status_code == 400
+    assert "Beitrittslink" in r.json()["detail"]
 
 
 def _chrome_path() -> str | None:

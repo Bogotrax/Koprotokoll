@@ -37,7 +37,9 @@ Unterstützt wird zurzeit **Google Meet**, **Jitsi** (meet.jit.si sowie eigene I
 über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames) und **Microsoft Teams** über den
 Web-Client (Gastbeitritt unter dem Bot-Namen). Voraussetzung für Teams: Die Organisation muss
 **anonyme Beitritte erlauben** – sonst weist der Bot den Termin mit einer klaren Meldung ab
-(Alternativ: Begleit-App, siehe `docs/plan.md`). Zoom-Links werden weiterhin nur erkannt, der
+(Alternativ: Begleit-App, siehe `docs/plan.md`). Benötigt wird der **Einladungslink** aus
+„Teilnehmer einladen → Link kopieren“ (…/l/meetup-join/… bzw. …/meet/…) – die Adresszeile der
+„Sofortbesprechung“-Seite ist kein Meeting-Link. Zoom-Links werden weiterhin nur erkannt, der
 Beitritt ist noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
 Ton einer beliebigen Webseite auf (z. B. Webinar).
 
