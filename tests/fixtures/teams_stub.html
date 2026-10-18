@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Teams Test Stub</title>
+<style>
+  body { font-family: sans-serif; margin: 2em; }
+  .hidden { display: none; }
+  button { padding: 0.5em 1em; margin: 0.25em; }
+</style>
+</head>
+<body>
+
+<!-- App interstitial ("Open Microsoft Teams?" dialog) -->
+<div id="interstitial">
+  <h2>Open Microsoft Teams?</h2>
+  <button id="open-app-btn" role="button">Open Microsoft Teams</button>
+  <button id="browser-btn" role="button">Continue on this browser</button>
+  <p>Get the Teams app for a better experience</p>
+</div>
+
+<!-- Prejoin screen -->
+<div id="prejoin" class="hidden">
+  <h2>Choose your audio and video settings</h2>
+  <input type="text" id="name-input" placeholder="Enter name" aria-label="Type your name">
+  <button id="mic-toggle" role="button" aria-label="Mute microphone">Mute microphone</button>
+  <button id="cam-toggle" role="button" aria-label="Turn off camera">Turn off camera</button>
+  <button id="join-btn" role="button">Join now</button>
+</div>
+
+<!-- Lobby view -->
+<div id="lobby" class="hidden">
+  <p>Waiting for someone to let you in</p>
+</div>
+
+<!-- In-meeting view -->
+<div id="meeting" class="hidden">
+  <div id="toolbar">
+    <button id="participants-btn" role="button" aria-label="View participants">1</button>
+    <button id="leave-btn" role="button" aria-label="Leave">Leave</button>
+  </div>
+</div>
+
+<!-- Left meeting view -->
+<div id="left" class="hidden">
+  <p>You have left the meeting</p>
+</div>
+
+<!-- Denied view (simulates an org that blocks anonymous join) -->
+<div id="denied" class="hidden">
+  <p>Sorry, but you can't join this meeting</p>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+
+  function show(id) {
+    for (const el of document.querySelectorAll("body > div")) el.classList.add("hidden");
+    document.getElementById(id).classList.remove("hidden");
+  }
+
+  if (params.get("denied") === "1") {
+    show("denied");
+  } else {
+    show("interstitial");
+  }
+
+  document.getElementById("browser-btn").addEventListener("click", () => show("prejoin"));
+
+  document.getElementById("join-btn").addEventListener("click", () => {
+    show("lobby");
+    // Lobby endet automatisch (simuliert Einlass durch einen Teilnehmer).
+    setTimeout(() => show("meeting"), 3000);
+  });
+
+  document.getElementById("leave-btn").addEventListener("click", () => show("left"));
+
+  // Mikrofon-/Kamera-Umschalter mit wechselnden Beschriftungen
+  const mic = document.getElementById("mic-toggle");
+  mic.addEventListener("click", () => {
+    const on = mic.getAttribute("aria-label") === "Unmute microphone";
+    mic.setAttribute("aria-label", on ? "Mute microphone" : "Unmute microphone");
+    mic.textContent = on ? "Mute microphone" : "Unmute microphone";
+  });
+  const cam = document.getElementById("cam-toggle");
+  cam.addEventListener("click", () => {
+    const on = cam.getAttribute("aria-label") === "Turn on camera";
+    cam.setAttribute("aria-label", on ? "Turn off camera" : "Turn on camera");
+    cam.textContent = on ? "Turn off camera" : "Turn on camera";
+  });
+
+  // Expose participant count for testing
+  window.__setParticipants = (n) => {
+    document.getElementById("participants-btn").textContent = String(n);
+  };
+</script>
+</body>
+</html>

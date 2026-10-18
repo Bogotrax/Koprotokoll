@@ -64,5 +64,6 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 | Player mit synchronem Transkript | ✔ Klick auf Zeitstempel springt, aktuelle Zeile wird hervorgehoben | `<audio>` + `timeupdate` |
 | Redeanteile (Talk-Time) | ✔ | aus Segmentdauern |
 | Download | ✔ Markdown, TXT, SRT, JSON | `/api/meetings/{id}/export` |
-| Bot für Zoom und Microsoft Teams | ✘ Links werden erkannt, Beitritt noch nicht umgesetzt | – |
+| Bot für Microsoft Teams | ✔ Web-Client, Gastbeitritt (setzt erlaubte anonyme Beitritte voraus) | `bot/platforms.py` |
+| Bot für Zoom | ✘ Links werden erkannt, Beitritt noch nicht umgesetzt | – |
 | CRM/Slack-Integrationen, Team-Freigaben, Sentiment | ✘ nicht Teil der Grundfunktionen (über Webhooks/API anbindbar) | – |

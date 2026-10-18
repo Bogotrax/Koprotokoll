@@ -13,8 +13,8 @@ PATTERNS = {
     "teams": re.compile(r"https://teams\.(?:microsoft|live)\.com/(?:l/meetup-join|meet)/[^\s\"'<>]+", re.I),
     "jitsi": re.compile(r"https://meet\.jit\.si/[^\s\"'<>]+", re.I),
 }
-# Plattformen, denen der Bot beitreten kann. Zoom/Teams werden erkannt, aber noch nicht unterstützt.
-SUPPORTED = {"google_meet", "web", "jitsi"}
+# Plattformen, denen der Bot beitreten kann. Zoom wird erkannt, aber noch nicht unterstützt.
+SUPPORTED = {"google_meet", "web", "jitsi", "teams"}
 
 
 class BotError(RuntimeError):
@@ -237,7 +237,7 @@ class Jitsi(Adapter):
     def alone(self, page) -> bool:
         if self._body_hint(page, self.ALONE):
             return True
-        return self._participants_count(page) == 1
+        return _participants_count(page) == 1
 
     def leave(self, page) -> None:
         btn = page.get_by_role("button", name=self.LEAVE).first
@@ -273,19 +273,6 @@ class Jitsi(Adapter):
         return urllib.parse.urlunsplit(parts._replace(fragment=fragment))
 
     @staticmethod
-    def _participants_count(page) -> int | None:
-        """Teilnehmerzahl aus dem Participants-Button lesen (nur wenn eindeutig lesbar)."""
-        try:
-            btn = page.get_by_role("button", name=re.compile(r"participants", re.I)).first
-            if not _visible(btn, 500):
-                return None
-            text = btn.inner_text(timeout=500)
-            m = re.search(r"(\d+)", text or "")
-            return int(m.group(1)) if m else None
-        except Exception:  # noqa: BLE001 – Teilnehmerzahl ist optional
-            return None
-
-    @staticmethod
     def _dismiss(page) -> None:
         for name in ("Got it", "Dismiss", "Close"):
             btn = page.get_by_role("button", name=name, exact=True).first
@@ -305,6 +292,153 @@ class Jitsi(Adapter):
         return m.group(0) if m else None
 
 
+class Teams(Adapter):
+    """Microsoft Teams (Web) über die Weboberfläche, Gastbeitritt.
+
+    Der Beitritt erfolgt anonym über den Browser: Interstitial „Im Browser
+    fortfahren" („Continue on this browser"), Namen setzen, eventuell in der
+    Lobby warten, bis jemand einlässt. Klappt nur, wenn die Organisation
+    anonyme Beitritte erlaubt; sonst meldet der Bot einen klaren Fehler.
+    Die englische UI wird über ``--lang=en-US`` im Runner erzwungen, die
+    Selektoren decken die gängigen Beschriftungsvarianten ab.
+    """
+
+    JOIN = re.compile(r"^(join now|join)$", re.I)
+    BROWSER = re.compile(r"(continue on this browser|join on (the )?web instead"
+                         r"|continue without (an )?app|use the web app instead)", re.I)
+    LEAVE = re.compile(r"^(leave|leave (the )?(call|meeting))$", re.I)
+    DENIED = re.compile(r"(can't join this meeting|cannot join this meeting|you need permission"
+                        r"|guests? (are )?(not|n't) (allowed|permitted)"
+                        r"|anonymous (users? )?(are )?(not|n't) (allowed|permitted)"
+                        r"|(this )?meeting (has ended|is over)|meeting not found|no longer available"
+                        r"|you('ve| have) been removed)", re.I)
+    ENDED = re.compile(r"(you have left the meeting|you've left the meeting"
+                       r"|(this )?meeting has ended|the call ended"
+                       r"|you('ve| have) been removed|return to home screen)", re.I)
+    ALONE = re.compile(r"(you are the only one (here|in (this|the) meeting)|no one else is here)", re.I)
+    WAITING = re.compile(r"(waiting for someone to let you in|please wait"
+                         r"|waiting for (the )?(host|organizer|moderator))", re.I)
+
+    @staticmethod
+    def _join_url(url: str) -> str:
+        """Meeting-URL um den anonymen Beitritt erweitern (``anon=true``).
+
+        Teams-Links leiten sonst ggf. auf die Anmelde-Seite um; ``anon=true``
+        erzwingt den Gastbeitritt. Ein bereits vorhandener Parameter bleibt.
+        """
+        parts = urllib.parse.urlsplit(url)
+        query = urllib.parse.parse_qs(parts.query)
+        query.setdefault("anon", ["true"])
+        return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query, doseq=True)))
+
+    def join(self, page, url: str, bot_name: str, admit_timeout: float, on_status) -> None:
+        page.goto(self._join_url(url), wait_until="domcontentloaded")
+        self._dismiss(page)
+
+        # Interstitial „Teams-App öffnen?" → im Browser fortfahren (Button oder Link).
+        for loc in (page.get_by_role("button", name=self.BROWSER).first,
+                    page.get_by_role("link", name=self.BROWSER).first):
+            if _visible(loc, 2500):
+                try:
+                    loc.click(timeout=3000)
+                except Exception:  # noqa: BLE001 – Fallback: per JavaScript klicken
+                    try:
+                        loc.evaluate("el => el.click()")
+                    except Exception:  # noqa: BLE001
+                        pass
+                break
+
+        # Prüfe, ob der Beitritt direkt abgelehnt wird (z. B. Gastbeitritt gesperrt).
+        hint = self._body_hint(page, self.DENIED)
+        if hint:
+            raise BotError(f"Beitritt abgelehnt: {hint}")
+
+        # Prejoin: Namen setzen, Mikrofon und Kamera ausschalten.
+        name_box = page.locator("input[type=text][aria-label*='name' i], input[placeholder*='name' i]").first
+        if _visible(name_box, 10000):
+            name_box.fill(bot_name)
+
+        for pattern in (r"^(mute|turn off|stop|disable) (the )?(microphone|mic)$",
+                        r"^(mute|turn off|stop|disable) (the )?(camera|video)$"):
+            btn = page.get_by_role("button", name=re.compile(pattern, re.I)).first
+            if _visible(btn, 2000):
+                btn.click()
+
+        join_btn = page.get_by_role("button", name=self.JOIN).first
+        if not _visible(join_btn, 20000):
+            raise BotError(self._body_hint(page) or "Beitreten-Schaltfläche nicht gefunden")
+        join_btn.click()
+
+        # Auf Einlass warten (Lobby) oder direkten Beitritt erkennen.
+        deadline = time.time() + admit_timeout
+        leave = page.get_by_role("button", name=self.LEAVE).first
+        while time.time() < deadline:
+            if _visible(leave, 1000):
+                self._dismiss(page)
+                return
+            hint = self._body_hint(page, self.DENIED)
+            if hint:
+                raise BotError(f"Beitritt abgelehnt: {hint}")
+            if self._body_hint(page, self.WAITING):
+                on_status("waiting_admit")
+        raise BotError("Niemand hat den Bot rechtzeitig in das Meeting gelassen")
+
+    def ended(self, page) -> bool:
+        if page.is_closed():
+            return True
+        if _visible(page.get_by_role("button", name=self.LEAVE).first, 500):
+            return False
+        return bool(self._body_hint(page, self.ENDED))
+
+    def alone(self, page) -> bool:
+        if self._body_hint(page, self.ALONE):
+            return True
+        return _participants_count(page) == 1
+
+    def leave(self, page) -> None:
+        btn = page.get_by_role("button", name=self.LEAVE).first
+        if _visible(btn, 1000):
+            try:
+                btn.click(timeout=3000)
+            except Exception:  # noqa: BLE001 – Fallback: per JavaScript klicken
+                try:
+                    btn.evaluate("el => el.click()")
+                except Exception:  # noqa: BLE001
+                    pass
+
+    @staticmethod
+    def _dismiss(page) -> None:
+        for name in ("Got it", "Dismiss", "Close", "Not now", "Maybe later"):
+            btn = page.get_by_role("button", name=name, exact=True).first
+            if _visible(btn, 300):
+                try:
+                    btn.click(timeout=1000)
+                except Exception:  # noqa: BLE001 – Hinweisdialoge sind optional
+                    pass
+
+    @staticmethod
+    def _body_hint(page, pattern: re.Pattern | None = None) -> str | None:
+        try:
+            text = page.inner_text("body", timeout=2000)
+        except Exception:  # noqa: BLE001
+            return None
+        m = (pattern or Teams.DENIED).search(text)
+        return m.group(0) if m else None
+
+
+def _participants_count(page) -> int | None:
+    """Teilnehmerzahl aus dem Participants-Button lesen (nur wenn eindeutig lesbar)."""
+    try:
+        btn = page.get_by_role("button", name=re.compile(r"participants", re.I)).first
+        if not _visible(btn, 500):
+            return None
+        text = btn.inner_text(timeout=500)
+        m = re.search(r"(\d+)", text or "")
+        return int(m.group(1)) if m else None
+    except Exception:  # noqa: BLE001 – Teilnehmerzahl ist optional
+        return None
+
+
 def _visible(locator, timeout_ms: int) -> bool:
     try:
         locator.wait_for(state="visible", timeout=timeout_ms)
@@ -313,4 +447,4 @@ def _visible(locator, timeout_ms: int) -> bool:
         return False
 
 
-ADAPTERS = {"google_meet": GoogleMeet, "jitsi": Jitsi, "web": Adapter}
+ADAPTERS = {"google_meet": GoogleMeet, "jitsi": Jitsi, "teams": Teams, "web": Adapter}
