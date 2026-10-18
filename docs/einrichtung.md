@@ -33,9 +33,12 @@ normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
 - Läuft der Bot auf einem Server ohne Bildschirm und wird erkannt, hilft
   `KOPROTOKOLL_BOT_HEADLESS=0` zusammen mit `xvfb-run python -m koprotokoll`.
 
-Unterstützt wird zurzeit **Google Meet** und **Jitsi** (meet.jit.si sowie eigene Instanzen
-über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames). Zoom- und Teams-Links werden
-erkannt, der Beitritt ist aber noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
+Unterstützt wird zurzeit **Google Meet**, **Jitsi** (meet.jit.si sowie eigene Instanzen
+über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames) und **Microsoft Teams** über den
+Web-Client (Gastbeitritt unter dem Bot-Namen). Voraussetzung für Teams: Die Organisation muss
+**anonyme Beitritte erlauben** – sonst weist der Bot den Termin mit einer klaren Meldung ab
+(Alternativ: Begleit-App, siehe `docs/plan.md`). Zoom-Links werden weiterhin nur erkannt, der
+Beitritt ist noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
 Ton einer beliebigen Webseite auf (z. B. Webinar).
 
 > Hinweis: Aufzeichnungen nur mit Einverständnis der Teilnehmenden. Der Bot tritt sichtbar
