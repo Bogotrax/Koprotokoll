@@ -314,18 +314,26 @@ class Jitsi(Adapter):
 class Teams(Adapter):
     """Microsoft Teams (Web) über die Weboberfläche, Gastbeitritt.
 
-    Der Beitritt erfolgt anonym über den Browser: Interstitial „Im Browser
-    fortfahren" („Continue on this browser"), Namen setzen, eventuell in der
-    Lobby warten, bis jemand einlässt. Klappt nur, wenn die Organisation
-    anonyme Beitritte erlaubt; sonst meldet der Bot einen klaren Fehler.
-    Die englische UI wird über ``--lang=en-US`` im Runner erzwungen, die
-    Selektoren decken die gängigen Beschriftungsvarianten ab.
+    Der Beitritt erfolgt anonym über den Browser: Interstitial „In diesem
+    Browser fortfahren" („Continue on this browser"), Namen setzen, optionalen
+    Audio/Video-Hinweisdialog wegklicken, eventuell in der Lobby warten, bis
+    jemand einlässt. Klappt nur, wenn die Organisation anonyme Beitritte
+    erlaubt; sonst meldet der Bot einen klaren Fehler.
+    Die Beschriftungen stammen aus einer Live-Aufnahme der deutschen
+    teams.live.com-Oberfläche (Light-Meetings, Stand 2026-10) und decken
+    zusätzlich die englischen Varianten ab; die UI-Sprache folgt dem
+    Microsoft-Konto, nicht der Browsersprache.
     """
 
-    JOIN = re.compile(r"^(join now|join)$", re.I)
+    JOIN = re.compile(r"^(join now|join|jetzt teilnehmen)$", re.I)
     BROWSER = re.compile(r"(continue on this browser|join on (the )?web instead"
-                         r"|continue without (an )?app|use the web app instead)", re.I)
-    LEAVE = re.compile(r"^(leave|leave (the )?(call|meeting))$", re.I)
+                         r"|continue without (an )?app|use the web app instead"
+                         r"|in diesem browser fortfahren"
+                         r"|treten sie der besprechung über diesen browser bei)", re.I)
+    NO_MEDIA = re.compile(r"(ohne audio oder video fortfahren"
+                          r"|continue without (audio( or video)?|video))", re.I)
+    NAME_FIELD = re.compile(r"(name|namen)", re.I)
+    LEAVE = re.compile(r"^(leave|leave (the )?(call|meeting)|verlassen)$", re.I)
     DENIED = re.compile(r"(can't join this meeting|cannot join this meeting|you need permission"
                         r"|guests? (are )?(not|n't) (allowed|permitted)"
                         r"|anonymous (users? )?(are )?(not|n't) (allowed|permitted)"
@@ -333,10 +341,15 @@ class Teams(Adapter):
                         r"|you('ve| have) been removed)", re.I)
     ENDED = re.compile(r"(you have left the meeting|you've left the meeting"
                        r"|(this )?meeting has ended|the call ended"
-                       r"|you('ve| have) been removed|return to home screen)", re.I)
-    ALONE = re.compile(r"(you are the only one (here|in (this|the) meeting)|no one else is here)", re.I)
+                       r"|you('ve| have) been removed|return to home screen"
+                       r"|sind sie aus versehen gegangen"
+                       r"|zu teams-besprechungen zurückkehren"
+                       r"|erneut am anruf teilnehmen)", re.I)
+    ALONE = re.compile(r"(you are the only one (here|in (this|the) meeting)|no one else is here"
+                       r"|warten auf weitere teilnehmer)", re.I)
     WAITING = re.compile(r"(waiting for someone to let you in|please wait"
-                         r"|waiting for (the )?(host|organizer|moderator))", re.I)
+                         r"|waiting for (the )?(host|organizer|moderator)"
+                         r"|jemand wird sie einlassen)", re.I)
 
     @staticmethod
     def _join_url(url: str) -> str:
@@ -372,8 +385,12 @@ class Teams(Adapter):
         if hint:
             raise BotError(f"Beitritt abgelehnt: {hint}")
 
-        # Prejoin: Namen setzen, Mikrofon und Kamera ausschalten.
-        name_box = page.locator("input[type=text][aria-label*='name' i], input[placeholder*='name' i]").first
+        # Prejoin: optionalen Audio/Video-Hinweisdialog schließen (blockiert sonst
+        # die Bedienung), Namen setzen, Mikrofon und Kamera ausschalten.
+        self._dismiss_no_media(page)
+        name_box = page.get_by_role("textbox", name=self.NAME_FIELD).first
+        if not _visible(name_box, 3000):
+            name_box = page.locator("input[type=text][aria-label*='name' i], input[placeholder*='name' i]").first
         if _visible(name_box, 10000):
             name_box.fill(bot_name)
 
@@ -383,6 +400,7 @@ class Teams(Adapter):
             if _visible(btn, 2000):
                 btn.click()
 
+        self._dismiss_no_media(page)
         join_btn = page.get_by_role("button", name=self.JOIN).first
         if not _visible(join_btn, 20000):
             raise BotError(self._body_hint(page) or "Beitreten-Schaltfläche nicht gefunden")
@@ -390,9 +408,8 @@ class Teams(Adapter):
 
         # Auf Einlass warten (Lobby) oder direkten Beitritt erkennen.
         deadline = time.time() + admit_timeout
-        leave = page.get_by_role("button", name=self.LEAVE).first
         while time.time() < deadline:
-            if _visible(leave, 1000):
+            if self._leave_btn(page, 1000):
                 self._dismiss(page)
                 return
             hint = self._body_hint(page, self.DENIED)
@@ -405,7 +422,7 @@ class Teams(Adapter):
     def ended(self, page) -> bool:
         if page.is_closed():
             return True
-        if _visible(page.get_by_role("button", name=self.LEAVE).first, 500):
+        if self._leave_btn(page, 500):
             return False
         return bool(self._body_hint(page, self.ENDED))
 
@@ -415,10 +432,40 @@ class Teams(Adapter):
         return _participants_count(page) == 1
 
     def leave(self, page) -> None:
-        btn = page.get_by_role("button", name=self.LEAVE).first
-        if _visible(btn, 1000):
+        btn = self._leave_btn(page, 1000)
+        if btn:
             try:
                 btn.click(timeout=3000)
+            except Exception:  # noqa: BLE001 – Fallback: per JavaScript klicken
+                try:
+                    btn.evaluate("el => el.click()")
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def _leave_btn(self, page, timeout_ms: int = 1000):
+        """Verlassen-Button: per Beschriftung (z. B. „Verlassen" als title) oder fester id.
+
+        Der Teams-Verlassen-Button hat kein ``aria-label``, nur ``title`` – der
+        Name-Locator findet ihn trotzdem (title fließt in den Accessible Name
+        ein), die ``#hangup-button``-Id ist der robuste Fallback.
+        """
+        for loc in (page.get_by_role("button", name=self.LEAVE).first,
+                    page.locator("#hangup-button").first):
+            if _visible(loc, timeout_ms):
+                return loc
+        return None
+
+    def _dismiss_no_media(self, page) -> None:
+        """Hinweisdialog ohne Audio/Video-Geräte schließen (blockiert sonst den Beitritt).
+
+        Ohne Mikrofon-/Kamerarechte zeigt Teams den Dialog „Ohne Audio oder
+        Video fortfahren" („Continue without audio or video“) – ohne Klick auf
+        diesen Button kommt der Beitritt nie zustande.
+        """
+        btn = page.get_by_role("button", name=self.NO_MEDIA).first
+        if _visible(btn, 1500):
+            try:
+                btn.click(timeout=2000)
             except Exception:  # noqa: BLE001 – Fallback: per JavaScript klicken
                 try:
                     btn.evaluate("el => el.click()")
@@ -448,7 +495,7 @@ class Teams(Adapter):
 def _participants_count(page) -> int | None:
     """Teilnehmerzahl aus dem Participants-Button lesen (nur wenn eindeutig lesbar)."""
     try:
-        btn = page.get_by_role("button", name=re.compile(r"participants", re.I)).first
+        btn = page.get_by_role("button", name=re.compile(r"participants|personen", re.I)).first
         if not _visible(btn, 500):
             return None
         text = btn.inner_text(timeout=500)

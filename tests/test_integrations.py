@@ -414,7 +414,7 @@ def test_teams_adapter_join_and_leave(tmp_path):
             page = browser.new_page()
             adapter = Teams()
 
-            # Beitritt: „Continue on this browser" → Prejoin → Lobby → Meeting
+            # Beitritt: „In diesem Browser fortfahren" → Prejoin → Lobby → Meeting
             adapter.join(page, url, "Koprotokoll", 15, statuses.append)
             assert "waiting_admit" in statuses  # Lobby wurde durchlaufen
             assert not adapter.ended(page)
@@ -432,6 +432,37 @@ def test_teams_adapter_join_and_leave(tmp_path):
             browser.close()
     finally:
         web.shutdown()
+
+
+def test_teams_ui_labels_match_live_capture():
+    """Teams-Selektoren müssen die live aufgenommenen Original-Strings matchen.
+
+    Die Strings stammen aus einer ARIA-Aufnahme der echten deutschen
+    teams.live.com-Oberfläche (Light-Meetings, Gastbeitritt, 2026-10) – sie
+    dürfen nicht „geraten" werden, dieser Test pinnt die Realität fest.
+    """
+    from koprotokoll.bot.platforms import Teams
+
+    t = Teams()
+    # Interstitial: Browser-Beitritt (Name) und Fließtext-Variante
+    assert t.BROWSER.search("Treten Sie der Besprechung über diesen Browser bei")
+    assert t.BROWSER.search("In diesem Browser fortfahren")
+    assert t.BROWSER.search("Continue on this browser")
+    # Prejoin
+    assert t.JOIN.search("Jetzt teilnehmen")
+    assert t.JOIN.search("Join now")
+    assert t.NO_MEDIA.search("Ohne Audio oder Video fortfahren")
+    assert t.NAME_FIELD.search("Geben Sie Ihren Namen ein")
+    # Lobby
+    assert t.WAITING.search("Hallo, Koprotokoll Bot. Jemand wird Sie einlassen, "
+                            "wenn die Besprechung beginnt.")
+    # In-Meeting: Verlassen (nur title, kein aria-label)
+    assert t.LEAVE.search("Verlassen")
+    assert t.LEAVE.search("Leave")
+    # Allein und Beendet
+    assert t.ALONE.search("Warten auf weitere Teilnehmer...")
+    assert t.ENDED.search("Sind Sie aus Versehen gegangen?")
+    assert t.ENDED.search("Erneut am Anruf teilnehmen")
 
 
 def test_teams_adapter_denied(tmp_path):

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <title>Teams Test Stub</title>
@@ -11,42 +11,59 @@
 </head>
 <body>
 
-<!-- App interstitial ("Open Microsoft Teams?" dialog) -->
+<!--
+  Nachbau der live aufgenommenen teams.live.com-Oberfläche (Light-Meetings,
+  Gastbeitritt, deutsche UI, Stand 2026-10). Beschriftungen exakt wie im
+  Original, inkl. Audio/Video-Hinweisdialog und Verlassen-Button ohne
+  aria-label (nur title).
+-->
+
+<!-- Interstitial: „Teams-App öffnen?“-Seite -->
 <div id="interstitial">
-  <h2>Open Microsoft Teams?</h2>
-  <button id="open-app-btn" role="button">Open Microsoft Teams</button>
-  <button id="browser-btn" role="button">Continue on this browser</button>
-  <p>Get the Teams app for a better experience</p>
+  <h2>Ihrer Teams-Besprechung beitreten</h2>
+  <button id="open-app-btn" role="button" aria-label="Teams-App öffnen, um einer Besprechung beizutreten.">Beitreten über die Teams-App</button>
+  <button id="browser-btn" role="button" aria-label="Treten Sie der Besprechung über diesen Browser bei"><h3>In diesem Browser fortfahren</h3></button>
+  <p>Sie haben die App nicht? Jetzt herunterladen</p>
 </div>
 
-<!-- Prejoin screen -->
+<!-- Prejoin-Bildschirm -->
 <div id="prejoin" class="hidden">
-  <h2>Choose your audio and video settings</h2>
-  <input type="text" id="name-input" placeholder="Enter name" aria-label="Type your name">
-  <button id="mic-toggle" role="button" aria-label="Mute microphone">Mute microphone</button>
-  <button id="cam-toggle" role="button" aria-label="Turn off camera">Turn off camera</button>
-  <button id="join-btn" role="button">Join now</button>
-</div>
+  <h1>Microsoft Teams-Besprechung</h1>
+  <span id="name-label">Geben Sie Ihren Namen ein</span>
+  <input type="text" id="name-input" placeholder="Geben Sie Ihren Namen ein" aria-label="Geben Sie Ihren Namen ein">
+  <div id="name-alert" role="alert" class="hidden">Geben Sie einen Namen ein, um an der Besprechung teilzunehmen.</div>
+  <button id="join-btn" role="button" disabled>Jetzt teilnehmen</button>
+  <button id="cancel-btn" role="button">Abbrechen</button>
 
-<!-- Lobby view -->
-<div id="lobby" class="hidden">
-  <p>Waiting for someone to let you in</p>
-</div>
-
-<!-- In-meeting view -->
-<div id="meeting" class="hidden">
-  <div id="toolbar">
-    <button id="participants-btn" role="button" aria-label="View participants">1</button>
-    <button id="leave-btn" role="button" aria-label="Leave">Leave</button>
+  <!-- Audio/Video-Hinweisdialog (ohne Geräte) – blockiert den Beitritt -->
+  <div id="nomedia-dialog" role="dialog">
+    <p>Möchten Sie wirklich kein Audio oder Video? Wenn Sie Ihre Meinung ändern, wählen Sie das Kamerasymbol in der Nähe Ihrer Adressleiste aus und dann Immer zulassen.</p>
+    <button id="nomedia-btn" role="button">Ohne Audio oder Video fortfahren</button>
   </div>
 </div>
 
-<!-- Left meeting view -->
-<div id="left" class="hidden">
-  <p>You have left the meeting</p>
+<!-- Lobby -->
+<div id="lobby" class="hidden">
+  <h1 id="lobby-text">Hallo, Gast. Jemand wird Sie einlassen, wenn die Besprechung beginnt.</h1>
 </div>
 
-<!-- Denied view (simulates an org that blocks anonymous join) -->
+<!-- In-Meeting-Ansicht -->
+<div id="meeting" class="hidden">
+  <div id="toolbar">
+    <button id="participants-btn" role="button" aria-label="Personen"><span id="pcount">1</span> Personen</button>
+    <!-- Wie im Original: kein aria-label, nur title -->
+    <button id="hangup-button" title="Verlassen"><svg></svg></button>
+  </div>
+  <div id="alone-text">Warten auf weitere Teilnehmer...</div>
+</div>
+
+<!-- Verlassen-Ansicht -->
+<div id="left" class="hidden">
+  <p>Sind Sie aus Versehen gegangen?</p>
+  <button id="rejoin-btn" role="button">Erneut am Anruf teilnehmen</button>
+</div>
+
+<!-- Abgelehnt (Organisation erlaubt keine anonymen Gäste) -->
 <div id="denied" class="hidden">
   <p>Sorry, but you can't join this meeting</p>
 </div>
@@ -65,34 +82,44 @@
     show("interstitial");
   }
 
-  document.getElementById("browser-btn").addEventListener("click", () => show("prejoin"));
+  const nameInput = document.getElementById("name-input");
+  const joinBtn = document.getElementById("join-btn");
+  const dialog = document.getElementById("nomedia-dialog");
 
-  document.getElementById("join-btn").addEventListener("click", () => {
+  function refreshJoin() {
+    // Wie im Original: Beitritt erst nach Name und geschlossenem Hinweisdialog.
+    joinBtn.disabled = !nameInput.value.trim() || !dialog.classList.contains("hidden");
+  }
+
+  document.getElementById("browser-btn").addEventListener("click", () => {
+    show("prejoin");
+    refreshJoin();
+  });
+
+  nameInput.addEventListener("input", refreshJoin);
+
+  document.getElementById("nomedia-btn").addEventListener("click", () => {
+    dialog.classList.add("hidden");
+    refreshJoin();
+  });
+
+  joinBtn.addEventListener("click", () => {
+    const name = nameInput.value.trim() || "Gast";
+    document.getElementById("lobby-text").textContent =
+      "Hallo, " + name + ". Jemand wird Sie einlassen, wenn die Besprechung beginnt.";
     show("lobby");
     // Lobby endet automatisch (simuliert Einlass durch einen Teilnehmer).
-    setTimeout(() => show("meeting"), 3000);
+    setTimeout(() => show("meeting"), 4000);
   });
 
-  document.getElementById("leave-btn").addEventListener("click", () => show("left"));
+  document.getElementById("hangup-button").addEventListener("click", () => show("left"));
 
-  // Mikrofon-/Kamera-Umschalter mit wechselnden Beschriftungen
-  const mic = document.getElementById("mic-toggle");
-  mic.addEventListener("click", () => {
-    const on = mic.getAttribute("aria-label") === "Unmute microphone";
-    mic.setAttribute("aria-label", on ? "Mute microphone" : "Unmute microphone");
-    mic.textContent = on ? "Mute microphone" : "Unmute microphone";
-  });
-  const cam = document.getElementById("cam-toggle");
-  cam.addEventListener("click", () => {
-    const on = cam.getAttribute("aria-label") === "Turn on camera";
-    cam.setAttribute("aria-label", on ? "Turn off camera" : "Turn on camera");
-    cam.textContent = on ? "Turn off camera" : "Turn on camera";
-  });
-
-  // Expose participant count for testing
+  // Teilnehmerzahl für Tests; allein = „Warten auf weitere Teilnehmer...“
   window.__setParticipants = (n) => {
-    document.getElementById("participants-btn").textContent = String(n);
+    document.getElementById("pcount").textContent = String(n);
+    document.getElementById("alone-text").classList.toggle("hidden", n > 1);
   };
+  window.__setParticipants(1);
 </script>
 </body>
 </html>
