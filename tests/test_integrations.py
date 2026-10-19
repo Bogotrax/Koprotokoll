@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import io
 import json
 import os
 import shutil
@@ -10,12 +11,17 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
+import numpy as np
+import socket
+
 import pytest
+import soundfile as sf
 from fastapi.testclient import TestClient
 
 import koprotokoll.google as google_mod
 import koprotokoll.microsoft as microsoft_mod
 import koprotokoll.signal as signal_mod
+import koprotokoll.signal_calls as calls_mod
 from koprotokoll.app import create_app
 from koprotokoll.bot.platforms import detect_platform, find_meeting_url
 from koprotokoll.config import Settings
@@ -575,6 +581,41 @@ def test_signal_send(monkeypatch, tmp_path):
         sig.send("Hallo")
 
 
+def test_signal_qr(monkeypatch, tmp_path):
+    """Der QR-Endpunkt liefert das PNG des signal-cli-Dienstes weiter."""
+    png = b"\x89PNG-Testdaten"
+
+    class FakeAntwort:
+        def read(self):
+            return png
+
+    class FakeUlopen:
+        def __init__(self, req, timeout=30):
+            self.req = req
+
+        def __enter__(self):
+            return FakeAntwort()
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(signal_mod.urllib.request, "urlopen", FakeUlopen)
+    with make_client(tmp_path) as c:
+        r = c.get("/api/integrations/signal/qr")
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "image/png"
+        assert r.content == png
+
+    # Signal-Dienst nicht erreichbar -> verständliche Fehlermeldung (503)
+    def kaputt(req, timeout=30):
+        raise OSError("Verbindung verweigert")
+
+    monkeypatch.setattr(signal_mod.urllib.request, "urlopen", kaputt)
+    with make_client(tmp_path) as c:
+        r = c.get("/api/integrations/signal/qr")
+        assert r.status_code == 503 and "Signal-Dienst nicht erreichbar" in r.json()["detail"]
+
+
 def test_signal_recap_after_bot_meeting(monkeypatch, tmp_path):
     fake = FakeSignal(accounts=["+4917673793524"])
     monkeypatch.setattr(signal_mod, "_http", fake)
@@ -616,3 +657,232 @@ def test_signal_test_endpoint(monkeypatch, tmp_path):
         fake.accounts = []
         r = c.post("/api/integrations/signal/test")
         assert r.status_code == 400 and "nicht verbunden" in r.json()["detail"]
+
+
+# ------------------------------------------------------------------ Signal-Anrufe
+class FakeJsonRpc:
+    """Ersetzt signal_calls._jsonrpc: simuliert die Anruf-Funktionen von signal-cli."""
+
+    def __init__(self):
+        self.calls: list[tuple[str, dict]] = []
+
+    def __call__(self, url, method, params):
+        self.calls.append((method, params))
+        return {"result": "ok"}
+
+
+class FakeAudioSocket:
+    """Ersetzt signal_calls._open_audio_source: liefert rohes PCM 16 Bit Mono."""
+
+    def __init__(self, data: bytes):
+        self._buf = io.BytesIO(data)
+        self.opened: str | None = None
+
+    def __call__(self, socket_path):
+        self.opened = socket_path
+        return self._buf
+
+
+def _pcm(rate: int, seconds: float) -> bytes:
+    """Rauschen als PCM 16 Bit (Mono) der angegebenen Länge."""
+    n = int(rate * seconds)
+    return np.linspace(-1000, 1000, n).astype("<i2").tobytes()
+
+
+def test_signal_call_tcp_source(monkeypatch):
+    """tcp://-Variante: verbindet sich, liest Daten und schickt Stille zurück."""
+    sent = bytearray()
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # loopback geht überall
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+
+    def serve():
+        conn, _ = server.accept()
+        conn.settimeout(5)
+        conn.sendall(b"\x09\x08" * 64)
+        try:
+            while True:
+                if conn.recv(1024):
+                    sent.extend(b"x")
+        except OSError:
+            pass
+        conn.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    src = calls_mod._open_audio_source(f"tcp://127.0.0.1:{port}")
+    data = b""
+    while len(data) < 128:  # recv darf häppchenweise liefern
+        data += src.read(4096)
+    assert data == b"\x09\x08" * 64
+    src.close()  # Keepalive-Stille ist im test_signal_call_socket_glob_and_keepalive geprüft
+    src.close()
+    thread.join(timeout=5)
+    server.close()
+
+
+def test_signal_call_tcp_source_invalid():
+    with pytest.raises(ValueError, match="Ungültige TCP-Adresse"):
+        calls_mod._open_audio_source("tcp://kein-port")
+
+
+def test_signal_call_socket_glob_and_keepalive(monkeypatch):
+    """_open_audio_source findet den neuesten signal-call-*.sock und schickt Stille zurück."""
+    sent = bytearray()
+
+    class FakeSock:
+        def __init__(self):
+            self.connected = None
+
+        def settimeout(self, t):
+            pass
+
+        def connect(self, path):
+            self.connected = path
+
+        def recv(self, n):
+            return b"\x01\x02" * 100
+
+        def sendall(self, data):
+            sent.extend(data)
+
+        def close(self):
+            pass
+
+    fake_sock = FakeSock()
+    monkeypatch.setattr(calls_mod.socket, "socket", lambda *a, **k: fake_sock)
+    monkeypatch.setattr(calls_mod.socket, "AF_UNIX", 1, raising=False)
+    monkeypatch.setattr(calls_mod.glob, "glob", lambda p: ["/tmp/signal-call-111.sock",
+                                                           "/tmp/signal-call-222.sock"])
+    monkeypatch.setattr(calls_mod.os.path, "getmtime",
+                        lambda p: 111 if "111" in p else 222)
+    src = calls_mod._open_audio_source("/tmp/signal-call-*.sock")
+    assert fake_sock.connected == "/tmp/signal-call-222.sock"  # neuester Socket gewinnt
+    data = src.read(4096)
+    assert data == b"\x01\x02" * 100
+    assert sent == b"\x00" * 960  # Stille zurück an den Tunnel
+    src.close()
+
+
+def test_signal_jsonrpc_tcp_line_mode():
+    """tcp://-Variante: JSON-RPC als ein Objekt pro Zeile über rohes TCP."""
+    received = []
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+
+    def serve():
+        conn, _ = server.accept()
+        buf = b""
+        while b"\n" not in buf:
+            buf += conn.recv(65536)
+        received.append(json.loads(buf.split(b"\n", 1)[0]))
+        conn.sendall(json.dumps({"jsonrpc": "2.0", "result": {"ok": True}, "id": 1}).encode() + b"\n")
+        conn.close()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    result = calls_mod._jsonrpc(f"tcp://127.0.0.1:{port}", "startCall", {"account": "a", "recipient": "b"})
+    assert result == {"ok": True}
+    assert received[0]["method"] == "startCall"
+    assert received[0]["jsonrpc"] == "2.0"
+    thread.join(timeout=5)
+    server.close()
+
+
+@pytest.mark.parametrize("call_id", [None, 123456789])
+def test_signal_call_start_stop(monkeypatch, tmp_path, call_id):
+    """Anruf starten und beenden: Meeting wird angelegt und in die Pipeline gegeben."""
+    fake = FakeJsonRpc()
+    monkeypatch.setattr(calls_mod, "_jsonrpc", fake)
+    monkeypatch.setattr(calls_mod, "_last_call_id", call_id)
+    audio = FakeAudioSocket(_pcm(8000, 0.5))
+    monkeypatch.setattr(calls_mod, "_open_audio_source", audio)
+
+    fake_signal = FakeSignal(accounts=["+4917673793524"])
+    monkeypatch.setattr(signal_mod, "_http", fake_signal)
+    with make_client(tmp_path, signal_audio_rate=8000) as c:
+        # Status vor dem Anruf
+        st = c.get("/api/integrations/signal/call").json()
+        assert st["recording"] is False and st["meeting_id"] is None
+
+        r = c.post("/api/integrations/signal/call/start",
+                   json={"number": "+49 176 7379 3524", "title": "Telefonat"})
+        assert r.status_code == 200
+        meeting_id = r.json()["meeting_id"]
+        assert r.json()["recording"] is True
+        assert fake.calls == [("startCall", {"account": "+4917673793524",
+                                             "recipient": "+4917673793524"})]
+
+        # Zweiter Start während laufender Aufnahme wird abgelehnt
+        r = c.post("/api/integrations/signal/call/start", json={"number": "+4917673793524"})
+        assert r.status_code == 400 and "bereits" in r.json()["detail"]
+
+        # Erst stoppen, wenn der Aufnahme-Thread das gesamte Testaudio gelesen hat.
+        deadline = time.monotonic() + 5
+        while audio._buf.tell() < 8000 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert audio._buf.tell() == 8000
+
+        r = c.post("/api/integrations/signal/call/stop")
+        assert r.status_code == 200
+        assert r.json() == {"ok": True, "meeting_id": meeting_id, "number": "+4917673793524"}
+        hangup_params = {"account": "+4917673793524"}
+        if call_id is None:
+            hangup_params["recipient"] = "+4917673793524"
+        else:
+            hangup_params["callId"] = call_id
+        assert ("hangupCall", hangup_params) in fake.calls
+
+        # Das Meeting existiert und das aufgenommene WAV liegt im Medienordner
+        m = c.get(f"/api/meetings/{meeting_id}").json()
+        assert m["title"] == "Telefonat" and m["source_name"] == "Signal-Anruf"
+        s = Settings(data_dir=tmp_path)
+        wav = s.media_dir / f"{meeting_id}-signal.wav"
+        assert c.app.state.db.get_meeting(meeting_id)["audio_path"] == str(wav)
+        assert wav.exists() and wav.stat().st_size > 0
+        data, sr = sf.read(str(wav), dtype="int16")
+        assert sr == 8000 and len(data) == 4000  # 0,5 s Audio angekommen
+        if shutil.which("ffmpeg"):
+            assert wait_done(c, meeting_id)["status"] == "done"
+
+        st = c.get("/api/integrations/signal/call").json()
+        assert st["recording"] is False
+
+        # Stoppen ohne laufende Aufnahme: deutsche Fehlermeldung
+        r = c.post("/api/integrations/signal/call/stop")
+        assert r.status_code == 400 and "keine Signal-Anruf-Aufnahme" in r.json()["detail"]
+
+
+def test_signal_call_no_audio(monkeypatch, tmp_path):
+    """Kommt kein Audio vom Tunnel-Socket, wird das Meeting als Fehler markiert."""
+    fake = FakeJsonRpc()
+    monkeypatch.setattr(calls_mod, "_jsonrpc", fake)
+    audio = FakeAudioSocket(b"")  # Socket öffnet, liefert aber nichts
+    monkeypatch.setattr(calls_mod, "_open_audio_source", audio)
+    fake_signal = FakeSignal(accounts=["+4917673793524"])
+    monkeypatch.setattr(signal_mod, "_http", fake_signal)
+
+    with make_client(tmp_path) as c:
+        monkeypatch.setattr(calls_mod, "SOCKET_TIMEOUT", 1.0)
+        c.post("/api/integrations/signal/call/start", json={"number": "+4917673793524"})
+        r = c.post("/api/integrations/signal/call/stop")
+        assert r.status_code == 400 and "Kein Audio" in r.json()["detail"]
+        m = c.get("/api/meetings/1").json()
+        assert m["status"] == "error" and "Kein Audio" in m["error"]
+
+
+def test_signal_call_not_connected(monkeypatch, tmp_path):
+    """Ohne verknüpftes Signal-Konto: verständliche deutsche Fehlermeldung."""
+    fake = FakeJsonRpc()
+    monkeypatch.setattr(calls_mod, "_jsonrpc", fake)
+    fake_signal = FakeSignal(accounts=[])
+    monkeypatch.setattr(signal_mod, "_http", fake_signal)
+    with make_client(tmp_path) as c:
+        r = c.post("/api/integrations/signal/call/start", json={"number": "+4917673793524"})
+        assert r.status_code == 400 and "nicht verbunden" in r.json()["detail"]
+        assert fake.calls == []  # startCall wurde nie verschickt

@@ -628,8 +628,15 @@ async function renderSignal() {
     parts.push(h("p", {}, "Signal verbunden als ", h("b", {}, g.number || "?")));
   } else {
     parts.push(h("p", { class: "muted small" },
-      "Noch nicht verbunden: Starte den Signal-Dienst (docker compose -f docker-compose.signal.yml up -d) ",
-      "und verknüpfe dein Signal-Konto als Sekundärgerät (Signal → Einstellungen → Verbundene Geräte)."));
+      "Noch nicht verbunden. Scanne den QR-Code mit deinem Signal-Handy ",
+      "(Einstellungen → Verbundene Geräte → +) – der Dienst koppelt sich als Sekundärgerät."));
+    const qr = h("img", { class: "signal-qr", alt: "QR-Code zum Verknüpfen von Signal",
+                          src: withKey("/api/integrations/signal/qr") });
+    qr.addEventListener("error", () => {
+      qr.replaceWith(h("p", { class: "muted small" },
+        "QR-Code nicht verfügbar – läuft der Signal-Dienst? (docker compose -f docker-compose.signal.yml up -d)"));
+    });
+    parts.push(qr);
   }
   parts.push(
     h("div", { class: "row" }, num, h("button", { onclick: async () => {

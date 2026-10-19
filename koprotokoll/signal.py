@@ -81,6 +81,29 @@ class SignalClient:
                 "api_url": self.s.signal_api_url, "settings": self.settings()}
 
     # -- Versand ---------------------------------------------------------------------
+    # -- Verknüpfung (QR-Code) ------------------------------------------------------
+    def qr_png(self) -> bytes:
+        """Liefert den QR-Code zum Verknüpfen des Signal-Kontos als PNG-Bytes.
+
+        Ruft ``/v1/qrcodelink`` des signal-cli-Dienstes auf; der QR-Code wird mit dem
+        Signal-Handy gescannt (Einstellungen → Verbundene Geräte → +), damit dieser
+        Dienst als Sekundärgerät verbunden wird.
+        """
+        req = urllib.request.Request(
+            f"{self.s.signal_api_url}/v1/qrcodelink?device_name=koprotokoll")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:300]
+            raise SignalError(f"Signal-API {e.code}: {detail}") from e
+        except OSError as e:
+            raise SignalError(
+                "Signal-Dienst nicht erreichbar – gestartet? "
+                "(docker compose -f docker-compose.signal.yml up -d)") from e
+
+    # -- Versand ---------------------------------------------------------------------
+
     def send(self, text: str, to: str | None = None) -> dict:
         """Schickt eine Textnachricht per Signal an ``to`` (Default: hinterlegte Nummer)."""
         to = to or self.settings().get("recipient") or ""

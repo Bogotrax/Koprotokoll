@@ -44,6 +44,14 @@ class Settings:
 
     # Signal-Integration (Recap & Statusmeldungen) – lokaler signal-cli-Dienst.
     signal_api_url: str = field(default_factory=lambda: _env("KOPROTOKOLL_SIGNAL_URL", "http://127.0.0.1:8090").rstrip("/"))
+    # Roher JSON-RPC von signal-cli (Anruf-Funktionen startCall/acceptCall/hangupCall).
+    signal_jsonrpc_url: str = field(default_factory=lambda: _env("KOPROTOKOLL_SIGNAL_JSONRPC_URL", "tcp://127.0.0.1:6003").rstrip("/"))
+    # Glob-Muster für die Unix-Sockets, in die der Signal-Call-Tunnel
+    # (AUDIO_MODE=pipe) das Anruf-Audio schreibt – der Name ist pro Anruf
+    # dynamisch (z. B. /tmp/signal-call-1234567890.sock).
+    signal_audio_socket: str = field(default_factory=lambda: _env("KOPROTOKOLL_SIGNAL_AUDIO_SOCKET", "/tmp/signal-call-*.sock"))
+    # Abtastrate des rohen Audio-Streams des Tunnels (PCM 16 Bit, Mono).
+    signal_audio_rate: int = field(default_factory=lambda: int(_env("KOPROTOKOLL_SIGNAL_AUDIO_RATE", "48000")))
 
     # Meeting-Bot (tritt Meetings als Teilnehmer bei).
     bot_name: str = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_NAME", "Koprotokoll"))

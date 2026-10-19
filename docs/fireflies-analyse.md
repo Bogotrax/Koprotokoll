@@ -52,6 +52,7 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 | Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet und Jitsi als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
 | Kalender-Anbindung (Auto-Join) | ✔ Google Kalender, Microsoft/Outlook (auch Privatkonten) | OAuth 2.0, Kalender nur lesen; Termine der nächsten 7 Tage auf der Startseite |
 | Recap-E-Mail nach dem Meeting | ✔ über Gmail an sich selbst, optional an alle Teilnehmer | Gmail API (nur senden) |
+| Telefonate aufzeichnen (Call Recording) | Experimenteller Teilerfolg: Audio und Transkript, wenn Koprotokoll selbst Anruf-Endpunkt ist; kein fertiger Gesprächsbegleiter | Mitschnitt menschlich geführter Handygespräche über ein verknüpftes Konto noch nicht nachgewiesen, eingehend wie ausgehend. Siehe [Signal-Zwischenstand](signal-zwischenstand.md). |
 | API / Webhooks / MCP | ✔ REST mit API-Schlüsseln, OpenAPI, HMAC-signierte Webhooks, MCP-Server | FastAPI, `mcp` |
 | Aufnahme ohne Bot | Browser-Aufnahme: Mikrofon **oder** Mikrofon + Tab-/Bildschirmton | `MediaRecorder` + `getDisplayMedia` |
 | Datei-Upload (MP3, MP4, WAV, M4A …) | ✔ | ffmpeg → 16 kHz Mono |

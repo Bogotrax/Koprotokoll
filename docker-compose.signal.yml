@@ -7,14 +7,24 @@
 # Der Dienst läuft lokal unter http://127.0.0.1:8090 – es verlässt nichts
 # den Rechner. Zugangsdaten und Schlüssel liegen unter ./data/signal-cli
 # (git-ignoriert).
+#
+# Zusätzlich ist das rohe JSON-RPC von signal-cli unter 127.0.0.1:6001
+# erreichbar (für Anruf-Funktionen des Bots, z. B. startCall/acceptCall).
+#
+# Image: Das Standard-Image wurde um den Signal-Call-Tunnel im Pipe-Modus
+# erweitert (koprotokoll-signal:pipe, enthält Tunnel-Binary, Wrapper
+# SIGNAL_CALL_TUNNEL_AUDIO_MODE=pipe und socat). Neu bauen:
+#   docker commit koprotokoll-signal koprotokoll-signal:pipe
+# Sicherungskopien der Tunnel-Binaries liegen unter ./data/signal-tunnel/.
 services:
   signal-cli-rest-api:
-    image: bbernhard/signal-cli-rest-api:latest
+    image: koprotokoll-signal:pipe
     container_name: koprotokoll-signal
     environment:
       - MODE=json-rpc
     ports:
       - "8090:8080"
+      - "127.0.0.1:6001:6001"
     volumes:
       - "./data/signal-cli:/home/.local/share/signal-cli"
     restart: unless-stopped

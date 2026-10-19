@@ -28,6 +28,7 @@ from .pipeline import Pipeline
 from .recap import RecapMailer, SignalRecap
 from .scheduler import CalendarScheduler
 from .signal import SignalClient, SignalError
+from .signal_calls import SignalCallError, SignalCallManager
 from .speech import Diarizer, ParakeetTranscriber, SherpaDiarizer, Transcriber
 from .summarize import LLM, ask
 
@@ -96,6 +97,11 @@ class SignalSettingsIn(BaseModel):
     recipient: str | None = None
 
 
+class SignalCallIn(BaseModel):
+    number: str
+    title: str | None = None
+
+
 def create_app(settings: Settings | None = None, transcriber: Transcriber | None = None,
                diarizer: Diarizer | None = None, llm: LLM | None = None,
                google: GoogleClient | None = None, background: bool = True) -> FastAPI:
@@ -113,6 +119,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     google = google or GoogleClient(s, db)
     microsoft = MicrosoftClient(s, db)
     signal = SignalClient(s, db)
+    signal_calls = SignalCallManager(s, db, pipeline, signal)
     events.subscribe(RecapMailer(google, s.public_url))
     events.subscribe(SignalRecap(signal, s.public_url))
     from .bot.runner import BotManager
@@ -436,6 +443,37 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         except SignalError as e:
             raise HTTPException(400, str(e)) from e
         return {"ok": True}
+
+    @api.get("/api/integrations/signal/qr", tags=["signal"])
+    def signal_qr():
+        """QR-Code zum Verknüpfen des Signal-Kontos (PNG, im Handy scannen)."""
+        try:
+            png = signal.qr_png()
+        except SignalError as e:
+            raise HTTPException(503, str(e)) from e
+        return Response(content=png, media_type="image/png")
+
+    # -- Signal-Anrufe (Aufnahme über den Signal-Call-Tunnel) --------------------------
+    @api.get("/api/integrations/signal/call", tags=["signal"])
+    def signal_call_status():
+        return signal_calls.status()
+
+    @api.post("/api/integrations/signal/call/start", tags=["signal"])
+    def signal_call_start(call: SignalCallIn):
+        """Startet einen ausgehenden Signal-Anruf und zeichnet ihn auf."""
+        try:
+            return signal_calls.start(call.number, call.title)
+        except (SignalCallError, SignalError) as e:
+            raise HTTPException(400, str(e)) from e
+
+    @api.post("/api/integrations/signal/call/stop", tags=["signal"])
+    def signal_call_stop():
+        """Beendet die Aufnahme und gibt das Tonmaterial in die Verarbeitung."""
+        try:
+            return signal_calls.stop()
+        except SignalCallError as e:
+            raise HTTPException(400, str(e)) from e
+
 
     # -- Kommende Termine (Anzeige) --------------------------------------------------------
     @api.get("/api/upcoming", tags=["calendars"])
