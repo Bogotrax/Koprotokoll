@@ -40,6 +40,11 @@ Die automatische Annahme war ein befristeter Test, kein laufender Dienst.
   portables Diagnosewerkzeug für den eingehenden Endpunkt-Test. Nimmt
   **nur mit explizitem `--accept-call`** ab;
   gehört nicht zur geplanten Begleiterfunktion. Wird nicht automatisch gestartet.
+- `scripts/signal_observe_test.py`: rein beobachtendes Werkzeug für den
+  Machbarkeitstest des passiven Begleiters. Sendet nur `subscribeCallEvents`,
+  protokolliert Ereignisse und Gerätenamen nach `data/signal-observe-<zeit>.log`
+  und führt **kein** `acceptCall`/`startCall`/`hangupCall` aus; der
+  Audio-Socket wird bewusst nicht verbunden, es entsteht keine Aufnahme.
 - `scripts/audio-bridge.sh`: älterer socat-Versuch, nicht parallel zum Relay
   starten; der Tunnel akzeptiert nur eine Socket-Verbindung je Anruf.
 - `scripts/probe-listen.pl`: Diagnoseversuch, ebenfalls nicht parallel verwenden.
@@ -79,6 +84,8 @@ in Compose integriert; ein Container-Neustart kann manuelle Prozesse verlieren.
 
 1. Rein beobachtenden Test vorbereiten: kein `acceptCall`, kein `startCall`,
    kein `hangupCall`. Nur Anrufereignisse und verfügbare Audioquellen prüfen.
+   Werkzeug: `python scripts/signal_observe_test.py --seconds 300` (RPC-Brücke
+   auf 6003 muss laufen; Auswertung anhand des Protokolls in `data/`).
 2. Eingehend: Mensch nimmt **auf Molly** ab und telefoniert mit zweitem Menschen.
 3. Ausgehend: Mensch ruft **auf Molly** den zweiten Menschen an.
 4. Jeweils feststellen, ob das verknüpfte Gerät Ereignisse und beide Audiospuren
