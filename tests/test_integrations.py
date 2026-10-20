@@ -45,6 +45,19 @@ def client(tmp_path):
         yield c
 
 
+# --------------------------------------------------------------------------- Konfiguration
+def test_bot_max_minutes_default(monkeypatch):
+    """Die maximale Bot-Dauer bleibt standardmäßig bei drei Stunden."""
+    monkeypatch.delenv("KOPROTOKOLL_BOT_MAX_MINUTES", raising=False)
+    assert Settings().bot_max_minutes == 180
+
+
+def test_bot_max_minutes_env_override(monkeypatch):
+    """Die maximale Bot-Dauer lässt sich weiterhin per Umgebung anpassen."""
+    monkeypatch.setenv("KOPROTOKOLL_BOT_MAX_MINUTES", "45")
+    assert Settings().bot_max_minutes == 45
+
+
 # --------------------------------------------------------------------------- Plattformen
 def test_detect_platform():
     assert detect_platform("https://meet.google.com/abc-defg-hij") == "google_meet"

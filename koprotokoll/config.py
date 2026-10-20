@@ -47,7 +47,7 @@ class Settings:
     bot_headless: bool = field(default_factory=lambda: _env("KOPROTOKOLL_BOT_HEADLESS", "1") != "0")
     bot_chrome_path: str | None = field(default_factory=lambda: os.environ.get("KOPROTOKOLL_BOT_CHROME"))
     bot_silence_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_SILENCE_MINUTES", "1")))
-    bot_max_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_MAX_MINUTES", "10")))
+    bot_max_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_MAX_MINUTES", "180")))
     bot_admit_minutes: float = field(default_factory=lambda: float(_env("KOPROTOKOLL_BOT_ADMIT_MINUTES", "10")))
 
     # Eigene Jitsi-Instanzen (kommagetrennte Hostnames) zusätzlich zu meet.jit.si.
