@@ -1,0 +1,2 @@
+#!/bin/sh
+SIGNAL_CALL_TUNNEL_AUDIO_MODE=pipe exec /opt/signal-cli-0.14.8/bin/signal-call-tunnel.real "$@"

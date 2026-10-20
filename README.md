@@ -150,6 +150,14 @@ Ohne LLM gibt es eine einfache, rein lokale Auswertung.
 ➡️ Alles Weitere – Meeting-Bot, Google Kalender & Gmail, Konfiguration – steht in
 **[docs/einrichtung.md](docs/einrichtung.md)**, die API in **[docs/api.md](docs/api.md)**.
 
+## Signal-Anruflabor (archiviertes Experiment)
+
+Signal-/Molly-Live-Anruftranskription am Handy ist **nicht unterstützt** und
+wird vorerst nicht weiterverfolgt. Der Forschungsstand auf dem separaten Branch
+`experiment/signal-handoff` ist zur Weiterarbeit gesichert, kein Produktfeature.
+[Übergabe, sauberes Docker-Image und bekannte Grenzen](docs/signal-uebergabe.md).
+Signal-Nachrichten und Sprachnachrichten sind davon getrennt zu betrachten.
+
 ## 🧩 Technik
 
 | Baustein | Projekt | Lizenz |

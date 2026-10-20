@@ -1,0 +1,43 @@
+# Eigenständiges Labor: keine vorhandenen Konten oder Produktivcontainer verwenden.
+services:
+  signal:
+    image: koprotokoll-signal:handoff-20261020
+    platform: linux/amd64
+    build:
+      context: ./docker/signal-lab
+    environment:
+      MODE: json-rpc
+    ports:
+      - "127.0.0.1:18090:8080"
+      - "127.0.0.1:16003:6003"
+      - "127.0.0.1:19002:9002"
+    volumes:
+      - signal-lab-account:/home/.local/share/signal-cli
+      - signal-lab-tmp:/tmp
+    restart: "no"
+  rpc:
+    image: koprotokoll-signal:handoff-20261020
+    platform: linux/amd64
+    network_mode: service:signal
+    entrypoint: ["socat"]
+    healthcheck:
+      disable: true
+    command: ["TCP-LISTEN:6003,bind=0.0.0.0,reuseaddr,fork", "TCP:127.0.0.1:6001"]
+    depends_on:
+      signal:
+        condition: service_healthy
+    restart: "no"
+  relay:
+    image: koprotokoll-signal:handoff-20261020
+    platform: linux/amd64
+    network_mode: service:signal
+    entrypoint: ["perl", "/opt/signal-lab/audio-relay.pl"]
+    volumes:
+      - signal-lab-tmp:/tmp
+    depends_on:
+      signal:
+        condition: service_healthy
+    restart: "no"
+volumes:
+  signal-lab-account:
+  signal-lab-tmp:

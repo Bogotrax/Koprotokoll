@@ -1,5 +1,10 @@
 # Signal/Molly – gesicherter Zwischenstand vom 19.10.2026
 
+> **Historischer Stand.** Die Arbeit an Live-Anruftranskription am Handy wurde
+> am 20.10.2026 vorerst eingestellt. Aktueller Befund und separat startbares
+> Forschungsarchiv: [Signal-Übergabe](signal-uebergabe.md). Alte Container-Snapshots
+> enthalten temporäre Aufnahmen/Logs und dürfen nicht weitergegeben werden.
+
 ## Verbindliches Ziel
 
 Zwei Menschen telefonieren in Signal/Molly auf ihren Geräten. Koprotokoll
