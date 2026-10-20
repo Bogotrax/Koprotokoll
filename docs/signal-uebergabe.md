@@ -39,9 +39,9 @@ Bot-Brücken als Ersatz für das ursprüngliche Ziel entwickeln.
 - `docker-compose.signal-lab.yml`: eigenständiges Labor mit eigenem Kontovolume,
   RPC-Brücke und Relay als expliziten Diensten statt manueller Hintergrundprozesse.
 - Image-Tag: `koprotokoll-signal:handoff-20261020`, Plattform **linux/amd64**.
-- Lokales Transportarchiv: `data/signal-handoff/koprotokoll-signal-handoff-20261020.tar`.
-  Image-Archiv und Binary gehören **nicht ins Git**. Ein Branch transportiert
-  Quellcode und Bauanleitung, nicht das Image; das TAR muss separat übergeben werden.
+- Lokales Transportarchiv des Quellbuilds: `data/signal-handoff/koprotokoll-signal-handoff-source-20261020.tar`.
+  Image-Archiv und Binary gehören **nicht ins Git**. Das TAR ist optional:
+  ein frischer Checkout kann das Image inzwischen direkt aus Quellen bauen.
 
 **Nicht weitergeben:** `koprotokoll-signal:pipe`, `:checkpoint-20261019`,
 `data/signal-cli/`, `data/media/` und echte Logs. Die alten Image-Schichten
@@ -56,7 +56,7 @@ und Python-Umgebung gemäß README vorausgesetzt. Keine echten Kontodaten übern
 ```powershell
 git fetch origin experiment/signal-handoff
 git switch experiment/signal-handoff
-docker load --input ./data/signal-handoff/koprotokoll-signal-handoff-20261020.tar
+docker compose -p signal-lab -f docker-compose.signal-lab.yml build signal
 docker compose -p signal-lab -f docker-compose.signal-lab.yml up -d --no-build
 docker compose -p signal-lab -f docker-compose.signal-lab.yml ps
 ```
@@ -96,39 +96,65 @@ docker compose -p signal-lab -f docker-compose.signal-lab.yml down
 Nicht `down -v` verwenden, wenn die neue Verknüpfung erhalten bleiben soll.
 Keine anderen Socat-/Relay-Prozesse parallel am selben Tunnel-Socket betreiben.
 
-## Image erneut bauen und Grenzen der Reproduzierbarkeit
-
-Das ursprüngliche lokal gebaute Tunnel-Binary ist gesichert; sein genauer
-Quell-Commit und damalige Build-Patches wurden nicht dokumentiert. Deshalb
-ist dies **kein vollständig aus Quellen reproduzierbarer Tunnel-Build**.
-Für eine öffentliche Weiterverteilung müssen Herkunft, Lizenzen und ggf.
-Pflichten zur Bereitstellung zugehöriger Quellen geklärt werden. Das Image
-wird hier nur lokal archiviert, nicht in eine öffentliche Registry geladen.
-
-Das Binary kann aus dem übergebenen Image gewonnen werden:
+## Aus einem frischen Checkout bauen – ohne lokale Binärdateien
 
 ```powershell
-docker create --name signal-lab-extract --entrypoint /bin/true koprotokoll-signal:handoff-20261020
-docker cp signal-lab-extract:/opt/signal-cli-0.14.8/bin/signal-call-tunnel.real ./docker/signal-lab/artifacts/signal-call-tunnel.real
-docker container rm signal-lab-extract
 docker compose -p signal-lab -f docker-compose.signal-lab.yml build signal
+docker compose -p signal-lab -f docker-compose.signal-lab.yml up -d --no-build
 ```
 
-Binary-SHA256:
-`68277110239ba60ac090a999f6e41699543a4a6141a6ef0e156b6bb25706c326`.
-Dockerfile prüft diesen Wert. Basis: signal-cli-rest-api-Digest
-`sha256:2cf09d66a86fdd210e42ee91662216364acc27da1163a8c44167a77ea3a6559a`,
-enthält signal-cli 0.14.8. APT-Pakete sind nicht versionsfixiert; TAR ist der
-exakte binäre Sicherungspunkt, der Dockerfile ein nachvollziehbarer Neuaufbau.
+Der mehrstufige Dockerfile lädt die festgelegten Quellen, initialisiert RingRTC,
+wendet die beiden im Quell-Commit enthaltenen Patches mit `build.sh` an und baut
+mit `cargo --locked`. Kein TAR und keine Datei aus `data/` sind erforderlich.
+Der Erstbau benötigt Internet, mehrere GB Speicher und deutlich mehr Zeit als
+`docker load`; Rust-Pakete und vorgebautes WebRTC werden heruntergeladen.
+
+### Rekonstruierte Herkunft des ursprünglichen Tunnels
+
+Die alte Build-Umgebung wurde wiedergefunden und mit dem gesicherten Binary
+verglichen. Ihr Build-Ergebnis hat exakt dieselbe SHA256 wie das eingesetzte
+Binary: `68277110239ba60ac090a999f6e41699543a4a6141a6ef0e156b6bb25706c326`.
+Alle fünf Rust-Quelldateien, `Cargo.toml`, `Cargo.lock` und `build.rs` stimmen
+bytegenau mit dem folgenden Git-Stand überein:
+
+| Bestandteil | Festgelegter Stand |
+|---|---|
+| Tunnel | https://github.com/michaelburch/signal-call-tunnel |
+| Tunnel-Commit | `2f924268e1d3083eef70dd82718f1e7e760b13d1` (Branch `pipe-audio-backend`) |
+| RingRTC-Submodul | `a86f8a6832cec291ef4f77e4ee9b941e5b91a01f` |
+| Rust-Buildimage | `rust@sha256:e259494b14672950a909b4c54527e19d29cae6ebf980672114c8bb85e5594e4a` |
+| Laufzeitbasis | `bbernhard/signal-cli-rest-api@sha256:2cf09d66a86fdd210e42ee91662216364acc27da1163a8c44167a77ea3a6559a` (signal-cli 0.14.8) |
+
+Benötigte RingRTC-Patches liegen bereits im Tunnel-Repository:
+`ringrtc-disable-vpio.patch` und `ringrtc-custom-audio-backend.patch`.
+Das zusätzliche signal-cli-Submodul wird nicht zum Tunnelbau benötigt; die
+Laufzeitbasis enthält signal-cli. Es werden keine eigenen unbekannten Patches
+oder lokalen Quelldateien in den neuen Build eingebracht.
+
+**Grenzen:** Quellen und Basisimages sind fixiert, aber APT-Pakete nicht.
+WebRTC wird durch RingRTCs Buildsystem als vorgebautes Artefakt bezogen.
+Das ist ein nachvollziehbarer Build aus dem festgelegten Tunnel-Quellstand,
+keine Zusage eines bitidentischen oder vollständig offline ausführbaren Builds.
+
+**Lizenzprüfung vor öffentlicher Image-Verteilung:** Im festgelegten
+Tunnel-Commit ist keine eigene LICENSE-Datei enthalten. Die Herkunft ist nun
+bekannt, eine Weiterverteilungslizenz wird dadurch nicht automatisch erteilt.
+RingRTC und weitere Abhängigkeiten haben eigene Lizenzbedingungen. Vor Upload
+eines Images in eine öffentliche Registry Rechte und Quellbereitstellung klären.
+Bis dahin nur den Build-Rezept-Branch veröffentlichen, nicht das Binary/Image.
 
 ## Prüfung der Übergabe
 
 - `python -m pytest -q --tb=short`: 43 Tests bestanden.
 - Compose-Konfiguration erfolgreich validiert.
-- Separater Stack gestartet: Signal und Relay gesund, RPC-Dienst läuft.
-  Der wartende Startbefehl wurde abgebrochen; der anschließende Statuscheck
-  bestätigte die laufenden Dienste. Keine Kontoverknüpfung und kein echter Anruf.
-- TAR-SHA256: `c21bd63627d5769f1338befb630048cbcfefeaf57c62478779a4dec457a70111`.
+- Mehrstufiger Docker-Build aus dem festgelegten Tunnel-Quellstand erfolgreich.
+  Image-ID: `sha256:1539e9de5698058255adfdf622e5e7a1742c2c815c36c796bf3527900a3c3298`.
+- Separater Stack mit diesem Image gestartet: Signal und Relay gesund,
+  RPC-Dienst läuft; signal-cli meldet 0.14.8, Relay-Syntaxprüfung erfolgreich.
+  Keine Kontoverknüpfung und kein echter Anruf. Der Startcheck ersetzt keinen
+  erneuten Audio-/Anruftest des neu gebauten Tunnels.
+- Die alte TAR-Prüfsumme bezog sich auf den vorherigen Binärimport-Build;
+  für die Weiterarbeit ist das Quellbuild-Rezept im Branch maßgeblich.
 
 ## Bekannte Baustellen für die nächste Person
 
@@ -136,8 +162,9 @@ exakte binäre Sicherungspunkt, der Dockerfile ein nachvollziehbarer Neuaufbau.
    unveränderter Client irgendeinen vorgesehenen Export beider Audiorichtungen?
    Mehrgeräte-Koordination im Quellcode nachvollziehen, nicht aus Eventnamen
    pauschale Protokollregeln ableiten. Quellenstand und Commit-IDs dokumentieren.
-2. Tunnel-Herkunft/Build rekonstruieren; Quellen statt unbekannter Binärdatei
-   reproduzierbar bauen. ARM64 wird durch dieses Binary nicht unterstützt.
+2. Tunnel-Herkunft und Quellbuild sind rekonstruiert (siehe oben). Vor öffentlicher
+   Image-Verteilung die fehlende explizite Tunnel-Lizenz klären. ARM64 ist nicht
+   validiert; Compose legt weiterhin linux/amd64 fest.
 3. Relay ist unverändert experimentell: blockierende Clients, fehlende Behandlung
    von Teil-Schreibvorgängen und SIGPIPE, Auswahl des neuesten statt eindeutig
    zugeordneten Sockets, Keepalive und Lebenszyklus nicht produktionsreif.

@@ -10,10 +10,15 @@ def test_signal_lab_uses_fresh_base_and_explicit_files():
     assert "FROM bbernhard/signal-cli-rest-api@sha256:" in dockerfile
     assert "checkpoint" not in dockerfile
     assert "COPY . " not in dockerfile
-    assert "sha256sum -c -" in dockerfile
+    assert "COPY --from=tunnel-build" in dockerfile
+    assert "COPY artifacts/" not in dockerfile
+    assert "2f924268e1d3083eef70dd82718f1e7e760b13d1" in dockerfile
+    assert "a86f8a6832cec291ef4f77e4ee9b941e5b91a01f" in dockerfile
+    assert "build --release --locked" in dockerfile
+    assert "FROM rust@sha256:" in dockerfile
     ignored = (LAB / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert ignored[0] == "**"
-    assert "!artifacts/signal-call-tunnel.real" in ignored
+    assert not any(line.startswith("!artifacts") for line in ignored)
     assert "!data/" not in ignored
 
 
