@@ -25,17 +25,24 @@ er allein ist, zu lange Stille herrscht oder die Höchstdauer erreicht ist. Dana
 normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
 
 - **Manuell**: Meet-Link in das Feld in der Seitenleiste einfügen oder `POST /api/bots`
-- **Automatisch**: Google verbinden → der Bot tritt allen Kalenderterminen mit Meet-Link bei
-  (abgelehnte Termine werden übersprungen), etwa eine Minute vor Beginn
+- **Automatisch**: Google oder Microsoft verbinden → der Bot tritt allen Kalenderterminen mit
+  Meeting-Link bei (abgelehnte und abgesagte Termine werden übersprungen). Geplante Bots
+  erscheinen bis zu 24 Stunden im Voraus in der Bot-Liste und lassen sich dort stornieren;
+  beigetreten wird etwa eine Minute vor Beginn, entfallene Termine räumt der Abgleich automatisch weg.
 - **Eigenes Google-Konto für den Bot (empfohlen)**: Google lässt anonyme Gäste oft gar nicht
   oder nur nach Freigabe herein. Einmalig `python -m koprotokoll bot-login` ausführen und im
   geöffneten Browser mit einem eigenen Bot-Konto anmelden.
 - Läuft der Bot auf einem Server ohne Bildschirm und wird erkannt, hilft
   `KOPROTOKOLL_BOT_HEADLESS=0` zusammen mit `xvfb-run python -m koprotokoll`.
 
-Unterstützt wird zurzeit **Google Meet** und **Jitsi** (meet.jit.si sowie eigene Instanzen
-über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames). Zoom- und Teams-Links werden
-erkannt, der Beitritt ist aber noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
+Unterstützt wird zurzeit **Google Meet**, **Jitsi** (meet.jit.si sowie eigene Instanzen
+über `KOPROTOKOLL_JITSI_HOSTS`, kommagetrennte Hostnames) und **Microsoft Teams** über den
+Web-Client (Gastbeitritt unter dem Bot-Namen). Voraussetzung für Teams: Die Organisation muss
+**anonyme Beitritte erlauben** – sonst weist der Bot den Termin mit einer klaren Meldung ab
+(Alternativ: Begleit-App, siehe `docs/plan.md`). Benötigt wird der **Einladungslink** aus
+„Teilnehmer einladen → Link kopieren“ (…/l/meetup-join/… bzw. …/meet/…) – die Adresszeile der
+„Sofortbesprechung“-Seite ist kein Meeting-Link. Zoom-Links werden weiterhin nur erkannt, der
+Beitritt ist noch nicht umgesetzt. Mit `platform: "web"` nimmt der Bot den
 Ton einer beliebigen Webseite auf (z. B. Webinar).
 
 > Hinweis: Aufzeichnungen nur mit Einverständnis der Teilnehmenden. Der Bot tritt sichtbar
@@ -109,7 +116,7 @@ Kurz vor Terminbeginn (~15 Minuten) legt Koprotokoll den Bot automatisch an.
 | `KOPROTOKOLL_BOT_NAME` | `Koprotokoll` | Anzeigename des Bots im Meeting |
 | `KOPROTOKOLL_BOT_HEADLESS` | `1` | `0` = sichtbares Browserfenster |
 | `KOPROTOKOLL_BOT_CHROME` | – | Pfad zu Chrome/Chromium statt Playwright-Chromium |
-| `KOPROTOKOLL_BOT_SILENCE_MINUTES` | `10` | Meeting verlassen nach so langer Stille |
+| `KOPROTOKOLL_BOT_SILENCE_MINUTES` | `1` | Meeting verlassen nach so langer Stille |
 | `KOPROTOKOLL_BOT_MAX_MINUTES` | `180` | Höchstdauer einer Aufnahme |
 | `KOPROTOKOLL_BOT_ADMIT_MINUTES` | `10` | Wartezeit auf Einlass |
 | `KOPROTOKOLL_JITSI_HOSTS` | – | Eigene Jitsi-Instanzen (kommagetrennte Hostnames) |

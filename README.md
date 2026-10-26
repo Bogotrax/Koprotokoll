@@ -73,7 +73,7 @@ Kanzleien, Behörden oder einfach vertrauliche Team-Meetings ist das oft ein No-
 <td width="50%" valign="top">
 
 **🎙️ Aufnehmen**
-- **Meeting-Bot** tritt Google Meet und Jitsi als Teilnehmer bei – per Link oder automatisch aus dem Kalender
+- **Meeting-Bot** tritt Google Meet, Jitsi und Microsoft Teams als Teilnehmer bei – per Link oder automatisch aus dem Kalender
 - Aufnahme im Browser: Mikrofon oder Ton eines Tabs (Zoom, Teams, Meet im Browser)
 - Upload von MP3, MP4, WAV, M4A, WebM, OGG, FLAC …
 
@@ -93,7 +93,7 @@ Kanzleien, Behörden oder einfach vertrauliche Team-Meetings ist das oft ein No-
 - Export als Markdown, TXT, SRT-Untertitel oder JSON
 
 **🔌 Anbinden**
-- **Google Kalender** (Auto-Join) und **Gmail** (Zusammenfassung per Mail)
+- **Google Kalender** und **Microsoft/Outlook** (Auto-Join), **Gmail** (Zusammenfassung per Mail)
 - **REST-API** mit API-Schlüsseln und OpenAPI-Doku
 - **Webhooks** (HMAC-signiert) für n8n, Zapier, Make & Co.
 - **MCP-Server** für Claude, Cursor und andere KI-Assistenten
@@ -169,12 +169,14 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] Transkription, Sprecher, Zusammenfassung, Suche, Export
 - [x] Meeting-Bot für Google Meet und Jitsi, Google Kalender & Gmail
 - [x] REST-API, Webhooks, MCP-Server
+- [ ] **Signal** (nächstes Vorhaben): Gruppenanrufe aufnehmen (Bot) und Zusammenfassungen sowie Statusmeldungen per Signal verschicken
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [x] Kalender aus **Outlook/Microsoft** (auch Privatkonten) – Termine der nächsten 7 Tage auf der Startseite
 - [ ] **CalDAV** (Nextcloud, iCloud, Thunderbird …) als weitere Kalenderquelle
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
 - [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
-- [ ] Meeting-Bot für **BigBlueButton**, **Microsoft Teams** und **Zoom**
+- [x] Meeting-Bot für **Microsoft Teams** (Web-Client, Gastbeitritt)
+- [ ] Meeting-Bot für **BigBlueButton** und **Zoom**
 - [ ] **Live-Transkript** während des Meetings
 - [ ] Sprecher **wiedererkennen** über Meetings hinweg (Stimmprofile)
 - [ ] **Docker**-Image und Installer für Windows/macOS

@@ -45,11 +45,29 @@ def client(tmp_path):
         yield c
 
 
+# --------------------------------------------------------------------------- Konfiguration
+def test_bot_max_minutes_default(monkeypatch):
+    """Die maximale Bot-Dauer bleibt standardmäßig bei drei Stunden."""
+    monkeypatch.delenv("KOPROTOKOLL_BOT_MAX_MINUTES", raising=False)
+    assert Settings().bot_max_minutes == 180
+
+
+def test_bot_max_minutes_env_override(monkeypatch):
+    """Die maximale Bot-Dauer lässt sich weiterhin per Umgebung anpassen."""
+    monkeypatch.setenv("KOPROTOKOLL_BOT_MAX_MINUTES", "45")
+    assert Settings().bot_max_minutes == 45
+
+
 # --------------------------------------------------------------------------- Plattformen
 def test_detect_platform():
     assert detect_platform("https://meet.google.com/abc-defg-hij") == "google_meet"
     assert detect_platform("https://us02web.zoom.us/j/123456?pwd=x") == "zoom"
     assert detect_platform("https://teams.microsoft.com/l/meetup-join/19%3a…") == "teams"
+    assert detect_platform("https://teams.live.com/meet/9378471055035?p=x") == "teams"
+    assert detect_platform("https://teams.live.com/v2/meet/9378471055035?p=x") == "teams"
+    # Vorbereitungsseite „Sofortbesprechung“ ist kein Beitrittslink
+    assert detect_platform("https://teams.live.com/v2/meet/meet-now") is None
+    assert detect_platform("https://teams.live.com/v2/meet/meet-now?launch=true") is None
     assert detect_platform("https://example.com/") is None
 
 
@@ -84,13 +102,17 @@ def test_find_meeting_url_jitsi():
 
 
 def test_find_meeting_url_prefers_supported_platform():
-    # Teams-Link im Termin, Jitsi in der Beschreibung → Jitsi hat Vorrang
-    event = {"meeting_url": "https://teams.live.com/meet/123?p=x",
+    # Zoom-Link im Termin (noch nicht unterstützt), Jitsi in der Beschreibung → Jitsi hat Vorrang
+    event = {"meeting_url": "https://us02web.zoom.us/j/123456?pwd=x",
              "description": "Alternativ: https://meet.jit.si/Planung"}
     assert find_meeting_url(event) == ("https://meet.jit.si/Planung", "jitsi")
-    # Ohne unterstützten Link bleibt der Teams-Link (Anzeige kann ihn zeigen)
-    only_teams = {"meeting_url": "https://teams.live.com/meet/123?p=x"}
-    assert find_meeting_url(only_teams) == ("https://teams.live.com/meet/123?p=x", "teams")
+    # Ohne unterstützten Link bleibt der Zoom-Link (Anzeige kann ihn zeigen)
+    only_zoom = {"meeting_url": "https://us02web.zoom.us/j/123456?pwd=x"}
+    assert find_meeting_url(only_zoom) == ("https://us02web.zoom.us/j/123456?pwd=x", "zoom")
+    # Teams ist unterstützt: der Link im Termin gewinnt vor dem Beschreibungslink
+    mixed = {"meeting_url": "https://teams.live.com/meet/123?p=x",
+             "description": "Alternativ: https://meet.jit.si/Planung"}
+    assert find_meeting_url(mixed) == ("https://teams.live.com/meet/123?p=x", "teams")
 
 
 def test_jitsi_join_url():
@@ -105,6 +127,16 @@ def test_jitsi_join_url():
     url2 = Jitsi._join_url("https://meet.jit.si/Raum#config.prejoinConfig.enabled=true", "Bot")
     assert "config.prejoinConfig.enabled=true" in url2
     assert "config.defaultLanguage=" in url2
+
+
+def test_teams_join_url():
+    from koprotokoll.bot.platforms import Teams
+    url = Teams._join_url("https://teams.microsoft.com/l/meetup-join/19%3ameeting_x%40thread.v2/0?context=abc")
+    assert "anon=true" in url
+    assert "context=abc" in url  # bestehende Parameter bleiben erhalten
+    # Ein bereits vorhandenes anon wird nicht überschrieben
+    url2 = Teams._join_url("https://teams.live.com/meet/123?anon=false")
+    assert "anon=false" in url2
 
 
 # --------------------------------------------------------------------------- API-Schlüssel
@@ -190,6 +222,13 @@ def test_bot_api_schedule_and_cancel(client):
     assert client.delete(f"/api/bots/{bot['id']}").status_code == 200
     assert client.get(f"/api/bots/{bot['id']}").json()["status"] == "cancelled"
     assert client.delete(f"/api/bots/{bot['id']}").status_code == 404
+
+
+def test_bot_rejects_teams_preparation_page(client):
+    # „Sofortbesprechung“-Vorbereitungsseite statt Einladungslink → deutscher Tipp statt Ratlosigkeit
+    r = client.post("/api/bots", json={"meeting_url": "https://teams.live.com/v2/meet/meet-now"})
+    assert r.status_code == 400
+    assert "Beitrittslink" in r.json()["detail"]
 
 
 def _chrome_path() -> str | None:
@@ -298,6 +337,121 @@ def test_jitsi_adapter_denied(tmp_path):
             browser = pw.chromium.launch(executable_path=chrome, headless=True)
             page = browser.new_page()
             adapter = Jitsi()
+            with pytest.raises(BotError, match="abgelehnt"):
+                adapter.join(page, url, "Koprotokoll", 5, lambda s: None)
+            browser.close()
+    finally:
+        web.shutdown()
+
+
+# --------------------------------------------------------------------------- Teams
+def test_teams_adapter_join_and_leave(tmp_path):
+    """Teams-Adapter gegen einen lokalen Stub: Interstitial → Prejoin → Lobby → Meeting → Verlassen."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import Teams
+
+        url = f"http://127.0.0.1:{web.server_port}/teams_stub.html"
+        statuses = []
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Teams()
+
+            # Beitritt: „In diesem Browser fortfahren" → Prejoin → Lobby → Meeting
+            adapter.join(page, url, "Koprotokoll", 15, statuses.append)
+            assert "waiting_admit" in statuses  # Lobby wurde durchlaufen
+            assert not adapter.ended(page)
+
+            # Allein-Erkennung: keine Kacheln + Hinweistext → allein
+            assert adapter.alone(page)
+
+            # Zwei Kacheln (echtes DOM-Muster: Rolle menuitem) → nicht allein
+            page.evaluate("window.__setParticipants(2)")
+            assert not adapter.alone(page)
+
+            # Nur die eigene Kachel → allein
+            page.evaluate("window.__setTiles(['Koprotokoll'])")
+            assert adapter.alone(page)
+
+            # Nur eine fremde Kachel → nicht allein
+            page.evaluate("window.__setTiles(['Sebastian Schade'])")
+            assert not adapter.alone(page)
+
+            # Verlassen
+            adapter.leave(page)
+            assert adapter.ended(page)
+            browser.close()
+    finally:
+        web.shutdown()
+
+
+def test_teams_ui_labels_match_live_capture():
+    """Teams-Selektoren müssen die live aufgenommenen Original-Strings matchen.
+
+    Die Strings stammen aus einer ARIA-Aufnahme der echten deutschen
+    teams.live.com-Oberfläche (Light-Meetings, Gastbeitritt, 2026-10) – sie
+    dürfen nicht „geraten" werden, dieser Test pinnt die Realität fest.
+    """
+    from koprotokoll.bot.platforms import Teams
+
+    t = Teams()
+    # Interstitial: Accessible Name des Buttons (die Überschrift darin ist ein
+    # eigener String und trägt nicht zum Accessible Name bei)
+    assert t.BROWSER.search("Join meeting from this browser")
+    assert t.BROWSER.search("Continue on this browser")
+    assert t.BROWSER.search("Treten Sie der Besprechung über diesen Browser bei")
+    assert t.BROWSER.search("In diesem Browser fortfahren")
+    # Prejoin
+    assert t.JOIN.search("Join now")
+    assert t.JOIN.search("Jetzt teilnehmen")
+    assert t.NO_MEDIA.search("Continue without audio or video")
+    assert t.NO_MEDIA.search("Ohne Audio oder Video fortfahren")
+    assert t.NAME_FIELD.search("Type your name")
+    assert t.NAME_FIELD.search("Geben Sie Ihren Namen ein")
+    # Lobby
+    assert t.WAITING.search("Hi, Koprotokoll Bot. Someone will let you in shortly.")
+    assert t.WAITING.search("Hallo, Koprotokoll Bot. Jemand wird Sie einlassen, "
+                            "wenn die Besprechung beginnt.")
+    # In-Meeting: Verlassen (title ohne aria-label; #hangup-button ist der Anker)
+    assert t.LEAVE.search("Verlassen")
+    # Allein
+    assert t.ALONE.search("Warten auf weitere Teilnehmer...")
+    # Beendet
+    assert t.ENDED.search("Did you leave by mistake?")
+    assert t.ENDED.search("Rejoin the call")
+    assert t.ENDED.search("Returning to Teams meetings")
+    assert t.ENDED.search("Sind Sie aus Versehen gegangen?")
+    assert t.ENDED.search("Erneut am Anruf teilnehmen")
+
+
+def test_teams_adapter_denied(tmp_path):
+    """Teams-Adapter: Gesperrter Gastbeitritt wird als abgelehnt erkannt."""
+    pytest.importorskip("playwright")
+    chrome = _chrome_path()
+    if chrome is None:
+        pytest.skip("Chromium für Playwright nicht installiert")
+    handler = partial(SimpleHTTPRequestHandler, directory=str(FIXTURES))
+    handler.log_message = lambda *a: None
+    web = HTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=web.serve_forever, daemon=True).start()
+    try:
+        from playwright.sync_api import sync_playwright
+        from koprotokoll.bot.platforms import BotError, Teams
+
+        url = f"http://127.0.0.1:{web.server_port}/teams_stub.html?denied=1"
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=chrome, headless=True)
+            page = browser.new_page()
+            adapter = Teams()
             with pytest.raises(BotError, match="abgelehnt"):
                 adapter.join(page, url, "Koprotokoll", 5, lambda s: None)
             browser.close()
@@ -439,6 +593,12 @@ def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
                         "status": {"response": "declined"}}]},
         {"id": "m3", "subject": "Abgesagt", "isCancelled": True,
          "start": {"dateTime": _iso(now + 300)}, "end": {"dateTime": _iso(now + 900)}},
+        {"id": "m4", "subject": "Teams-Call", "isCancelled": False,
+         "start": {"dateTime": _iso(now + 600)}, "end": {"dateTime": _iso(now + 1200)},
+         "attendees": [{"emailAddress": {"address": "ich@example.com"},
+                        "status": {"response": "accepted"}}],
+         "onlineMeeting": {"joinUrl": "https://teams.microsoft.com/l/meetup-join/"
+                                      "19%3ameeting_x%40thread.v2/0?context=t"}},
     ]
     fake = FakeMicrosoft(events)
     monkeypatch.setattr(microsoft_mod, "_http", fake)
@@ -470,9 +630,60 @@ def test_microsoft_oauth_calendar_autojoin(monkeypatch, tmp_path):
         weekly = next(b for b in created if b["title"] == "Team-Weekly")
         assert weekly["platform"] == "jitsi"
         assert weekly["join_at"] == pytest.approx(now + 240, abs=5)
+        # Teams-joinUrl aus dem Graph-Termin wird als Teams-Bot geplant
+        teams_bot = next(b for b in created if b["title"] == "Teams-Call")
+        assert teams_bot["platform"] == "teams"
 
         c.delete("/api/integrations/microsoft")
         assert not c.get("/api/integrations/microsoft").json()["connected"]
+
+
+def test_scheduler_plans_ahead_and_cancels_gone_events(tmp_path):
+    """Bots werden früh sichtbar geplant; entfallene Termine werden storniert."""
+    import koprotokoll.scheduler as scheduler_mod
+    from koprotokoll.calendar_source import CalendarEvent
+    from koprotokoll.db import Database
+
+    now = time.time()
+    far = CalendarEvent(
+        id="e1", title="Später", start=now + 3 * 3600, end=now + 4 * 3600,
+        description="https://teams.live.com/meet/1234567890123?p=token")
+
+    class FakeSource:
+        name = "fake"
+        label = "Fake-Kalender"
+
+        def __init__(self):
+            self.items = [far]
+
+        def enabled(self):
+            return True
+
+        def events(self, time_min, time_max):
+            return [e for e in self.items if time_min <= e.start < time_max]
+
+    src = FakeSource()
+    db = Database(tmp_path / "t.db")
+    cal = scheduler_mod.CalendarScheduler(db, [src])
+
+    # Termin in 3 Stunden → Bot wird JETZT schon angelegt, tritt aber erst
+    # 60 Sekunden vor Beginn bei
+    created = cal.sync(now)
+    assert len(created) == 1
+    bot = db.get_bot(created[0])
+    assert bot["platform"] == "teams"
+    assert bot["status"] == "scheduled"
+    assert bot["join_at"] == pytest.approx(far.start - scheduler_mod.JOIN_EARLY_S, abs=2)
+
+    # Idempotent: erneuter Abgleich legt keinen Zwilling an
+    assert cal.sync(now) == []
+
+    # Termin wird abgesagt → der geplante Bot wird beim nächsten Abgleich storniert
+    far.cancelled = True
+    cal.sync(now)
+    stale = db.get_bot(bot["id"])
+    assert stale["status"] == "cancelled"
+    assert "entfällt" in stale["error"]
 
 
 def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):

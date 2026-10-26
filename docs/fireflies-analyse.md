@@ -49,7 +49,7 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 
 | Fireflies-Funktion | Lokaler Nachbau | Umsetzung |
 |---|---|---|
-| Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet und Jitsi als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
+| Fireflies-„Notetaker“ tritt Meetings bei | ✔ Bot tritt Google Meet, Jitsi und Microsoft Teams (Gastbeitritt) als Teilnehmer bei (manuell oder automatisch aus dem Kalender) | Playwright-Chromium, WebRTC-Audiospuren per Init-Skript abgegriffen |
 | Kalender-Anbindung (Auto-Join) | ✔ Google Kalender, Microsoft/Outlook (auch Privatkonten) | OAuth 2.0, Kalender nur lesen; Termine der nächsten 7 Tage auf der Startseite |
 | Recap-E-Mail nach dem Meeting | ✔ über Gmail an sich selbst, optional an alle Teilnehmer | Gmail API (nur senden) |
 | API / Webhooks / MCP | ✔ REST mit API-Schlüsseln, OpenAPI, HMAC-signierte Webhooks, MCP-Server | FastAPI, `mcp` |
@@ -64,5 +64,6 @@ Aus den Accessibility-Texten der Seite ergibt sich das beworbene Kern-Feature-Se
 | Player mit synchronem Transkript | ✔ Klick auf Zeitstempel springt, aktuelle Zeile wird hervorgehoben | `<audio>` + `timeupdate` |
 | Redeanteile (Talk-Time) | ✔ | aus Segmentdauern |
 | Download | ✔ Markdown, TXT, SRT, JSON | `/api/meetings/{id}/export` |
-| Bot für Zoom und Microsoft Teams | ✘ Links werden erkannt, Beitritt noch nicht umgesetzt | – |
+| Bot für Microsoft Teams | ✔ Web-Client, Gastbeitritt (setzt erlaubte anonyme Beitritte voraus) | `bot/platforms.py` |
+| Bot für Zoom | ✘ Links werden erkannt, Beitritt noch nicht umgesetzt | – |
 | CRM/Slack-Integrationen, Team-Freigaben, Sentiment | ✘ nicht Teil der Grundfunktionen (über Webhooks/API anbindbar) | – |

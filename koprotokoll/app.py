@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import auth
-from .bot.platforms import SUPPORTED, detect_platform, find_meeting_url
+from .bot.platforms import SUPPORTED, detect_platform, find_meeting_url, link_hint
 from .calendar_source import CalendarEvent
 from .config import Settings
 from .db import Database
@@ -259,7 +259,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         if not url.startswith(("http://", "https://")):
             raise HTTPException(400, "meeting_url muss mit http:// oder https:// beginnen")
         if platform is None:
-            raise HTTPException(400, "Unbekannter Meeting-Link – für beliebige Webseiten platform='web' setzen")
+            raise HTTPException(400, link_hint(url) or "Unbekannter Meeting-Link – für beliebige Webseiten platform='web' setzen")
         if platform not in SUPPORTED:
             raise HTTPException(400, f"Plattform {platform} wird vom Bot noch nicht unterstützt "
                                      f"(unterstützt: {', '.join(sorted(SUPPORTED))})")
