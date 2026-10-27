@@ -11,6 +11,29 @@ def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
 
+# CalDAV-Anbieter-Presets für die Quellen-Einrichtung. ``server`` ist die
+# Basis-URL für die Server-Erkennung nach RFC 6764 (/.well-known/caldav →
+# Principal → Kalender-Verzeichnis). Weicht ein Anbieter davon ab, tragen
+# Nutzerinnen die Server- und Kalender-URL in den erweiterten Einstellungen
+# ein – die Erkennung scheitert dann abgesichert mit einer deutschen Meldung.
+# Google und Outlook.com fehlen absichtlich: deren Kalender laufen über die
+# OAuth-Punkte (Google/Microsoft), nicht über klassisches CalDAV.
+CALDAV_PRESETS: dict[str, dict[str, str]] = {
+    "icloud": {"label": "iCloud", "server": "https://caldav.icloud.com/",
+               "hint": "Apple-ID, z. B. name@icloud.com"},
+    "posteo": {"label": "Posteo", "server": "https://posteo.de:8443/",
+               "hint": "Posteo-E-Mail-Adresse"},
+    "mailbox": {"label": "mailbox.org", "server": "https://caldav.mailbox.org/",
+                "hint": "mailbox.org-Adresse"},
+    "fastmail": {"label": "Fastmail", "server": "https://caldav.fastmail.com/",
+                 "hint": "Fastmail-Adresse"},
+    "nextcloud": {"label": "Nextcloud / eigener Server", "server": "",
+                  "hint": "Server-Adresse, z. B. https://cloud.example.com"},
+    "other": {"label": "Anderer Anbieter", "server": "",
+              "hint": "Server- und Kalender-URL unter „Erweiterte Einstellungen“"},
+}
+
+
 @dataclass
 class Settings:
     data_dir: Path = field(default_factory=lambda: Path(_env("KOPROTOKOLL_DATA", "./data")).resolve())

@@ -29,6 +29,8 @@ curl -H "Authorization: Bearer $KEY" "http://localhost:8000/api/meetings/1/expor
 | Webhooks | `GET/POST /api/webhooks`, `DELETE /api/webhooks/{id}`, `POST /api/webhooks/{id}/test` |
 | Schlüssel | `GET/POST /api/keys`, `DELETE /api/keys/{id}` |
 | Google | `GET/DELETE /api/integrations/google`, `PUT …/client`, `GET …/connect`, `PATCH …/settings`, `POST …/sync` |
+| Microsoft | `GET/DELETE /api/integrations/microsoft`, `PUT …/client`, `GET …/connect`, `PATCH …/settings` |
+| Kalender-Quellen | `GET/POST /api/calendars`, `GET /api/calendars/presets`, `PATCH/DELETE /api/calendars/{id}`, `GET/POST /api/calendars/{id}/test`, `POST /api/calendars/sync` |
 
 ## Webhooks
 

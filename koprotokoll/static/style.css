@@ -103,6 +103,8 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; ma
 .nav-link:hover, .nav-link.active { background: var(--accent-soft); color: var(--accent); }
 .stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
 .small { font-size: 13px; }
+details summary { cursor: pointer; color: var(--muted); }
+details[open] summary { margin-bottom: 8px; }
 pre, code { font: 12px/1.4 ui-monospace, monospace; }
 pre { background: var(--bg); padding: 8px 10px; border-radius: 8px; overflow-x: auto; }
 .secret { background: var(--hl); padding: 8px 10px; border-radius: 8px; word-break: break-all; margin: 8px 0; font-size: 13px; }

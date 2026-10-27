@@ -8,6 +8,7 @@ import secrets
 import shutil
 import time
 import urllib.parse
+from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -17,12 +18,14 @@ from pydantic import BaseModel
 
 from . import auth
 from .bot.platforms import SUPPORTED, detect_platform, find_meeting_url, link_hint
+from .caldav_source import CalDavCalendarSource, CalDavError, normalize_server_url
 from .calendar_source import CalendarEvent
-from .config import Settings
+from .config import CALDAV_PRESETS, Settings
 from .db import Database
 from .events import EVENTS, EventBus
 from .export import export
 from .google import GoogleCalendarSource, GoogleClient, GoogleError
+from .ics_source import IcsCalendarSource, IcsError
 from .microsoft import MicrosoftCalendarSource, MicrosoftClient, MicrosoftError
 from .pipeline import Pipeline
 from .recap import RecapMailer
@@ -68,6 +71,29 @@ class WebhookIn(BaseModel):
     secret: str | None = None
 
 
+class CalendarSourceIn(BaseModel):
+    """Neue gespeicherte Kalenderquelle: ICS (Expertenoption) oder CalDAV."""
+
+    kind: str                     # "ics" oder "caldav"
+    label: str = ""
+    url: str = ""                 # ICS-Adresse/-Datei oder CalDAV-Kalender-Kollektion
+    server_url: str = ""          # CalDAV-Server für die automatische Erkennung
+    provider: str = ""            # Preset-Schlüssel aus config.CALDAV_PRESETS
+    username: str = ""
+    password: str = ""
+    own_email: str = ""
+
+
+class CalendarSourcePatch(BaseModel):
+    label: str | None = None
+    enabled: bool | None = None
+    url: str | None = None
+    server_url: str | None = None
+    username: str | None = None
+    password: str | None = None
+    own_email: str | None = None
+
+
 class GoogleClientIn(BaseModel):
     client_id: str
     client_secret: str
@@ -111,10 +137,29 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
 
     bots = BotManager(s, db, pipeline, events, tick_seconds=5.0 if background else 3600)
 
+    def stored_source(row: dict):
+        """Gespeicherte Quelle aus der Datenbank als CalendarSource-Objekt."""
+        cfg = row["config"]
+        if row["kind"] == "ics":
+            return IcsCalendarSource(f"ics-{row['id']}", row["label"], cfg.get("url", ""),
+                                     own_email=cfg.get("own_email", ""), enabled=row["enabled"])
+        return CalDavCalendarSource(f"caldav-{row['id']}", row["label"],
+                                    server_url=cfg.get("server_url", ""),
+                                    calendar_url=cfg.get("url", ""),
+                                    username=cfg.get("username", ""),
+                                    password=cfg.get("password", ""),
+                                    own_email=cfg.get("own_email", ""),
+                                    enabled=row["enabled"])
+
     def build_sources() -> list:
         sources: list = [GoogleCalendarSource(google), MicrosoftCalendarSource(microsoft)]
-        # Weitere gespeicherte Quellen-Arten (z. B. CalDAV) hier ergänzen.
+        for row in db.list_calendar_sources():
+            sources.append(stored_source(row))
         return sources
+
+    def refresh_sources() -> None:
+        """Quellenliste des Schedulers nach Änderungen neu aufbauen."""
+        calendar.sources = build_sources()
 
     calendar = CalendarScheduler(db, build_sources(), s.calendar_poll_seconds, s.jitsi_hosts)
     if background:
@@ -406,6 +451,119 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
     @api.delete("/api/integrations/microsoft", tags=["microsoft"])
     def microsoft_disconnect():
         microsoft.disconnect()
+        return {"ok": True}
+
+    # -- Gespeicherte Kalender-Quellen (ICS-Expertenoption + CalDAV) --------------------------
+    def source_out(row: dict) -> dict:
+        cfg = dict(row["config"])
+        has_password = bool(cfg.pop("password", ""))
+        return {"id": row["id"], "kind": row["kind"], "label": row["label"],
+                "enabled": row["enabled"], **cfg, "password": "", "password_set": has_password}
+
+    def source_or_404(source_id: int) -> dict:
+        row = db.get_calendar_source(source_id)
+        if row is None:
+            raise HTTPException(404, "Kalenderquelle nicht gefunden")
+        return row
+
+    def check_ics_url(url: str) -> str:
+        if "://" in url and not url.startswith(("http://", "https://")):
+            raise HTTPException(400, "ICS-Adresse muss mit http:// oder https:// beginnen "
+                                     "(oder ein Pfad zu einer .ics-Datei sein)")
+        return url
+
+    @api.get("/api/calendars/presets", tags=["calendars"])
+    def calendar_presets():
+        return [{"id": key, **value} for key, value in CALDAV_PRESETS.items()]
+
+    @api.get("/api/calendars", tags=["calendars"])
+    def calendar_sources():
+        return [source_out(row) for row in db.list_calendar_sources()]
+
+    @api.post("/api/calendars", status_code=201, tags=["calendars"])
+    def add_calendar_source(c: CalendarSourceIn):
+        kind = (c.kind or "").strip().lower()
+        if kind not in ("ics", "caldav"):
+            raise HTTPException(400, f"Unbekannte Quellen-Art „{c.kind}“ – erlaubt: ics, caldav")
+        label = (c.label or "").strip()
+        if kind == "ics":
+            url = check_ics_url((c.url or "").strip())
+            if not url:
+                raise HTTPException(400, "ICS-Adresse oder Pfad zur .ics-Datei fehlt")
+            config = {"url": url, "own_email": (c.own_email or "").strip().lower()}
+            label = label or "ICS-Kalender"
+        else:
+            provider = (c.provider or "").strip().lower()
+            preset_server = CALDAV_PRESETS.get(provider, {}).get("server", "")
+            server_url = normalize_server_url(provider, (c.server_url or "").strip() or preset_server)
+            calendar_url = (c.url or "").strip()
+            if not server_url and not calendar_url:
+                raise HTTPException(400, "Kein Server bekannt – Anbieter wählen oder die "
+                                         "Server-URL unter „Erweiterte Einstellungen“ eintragen")
+            if not (c.password or "").strip():
+                raise HTTPException(400, "Passwort fehlt – bei den meisten Anbietern ist ein "
+                                         "App-Passwort nötig")
+            if calendar_url and not calendar_url.startswith(("http://", "https://")):
+                raise HTTPException(400, "Kalender-URL muss mit http:// oder https:// beginnen")
+            config = {"provider": provider, "server_url": server_url, "url": calendar_url,
+                      "username": (c.username or "").strip(), "password": c.password,
+                      "own_email": (c.own_email or "").strip().lower()}
+            label = label or f"CalDAV ({config['username'] or provider or 'Kalender'})"
+            # Verbindungstest: Fehlgeschlagene Erkennung soll sofort eine Meldung
+            # liefern, damit die erweiterten Einstellungen die Rettung bieten.
+            probe = stored_source({"id": 0, "kind": kind, "label": label,
+                                   "config": config, "enabled": True})
+            try:
+                probe.events(time.time() - 86400, time.time() + 86400)
+            except (CalDavError, IcsError) as e:
+                raise HTTPException(400, f"{e} – bei Bedarf Server- und Kalender-URL unter "
+                                         "„Erweiterte Einstellungen“ eintragen.") from e
+        source_id = db.add_calendar_source(kind, label, config)
+        refresh_sources()
+        return source_out(db.get_calendar_source(source_id))
+
+    @api.post("/api/calendars/sync", tags=["calendars"])
+    def sync_calendar_sources():
+        refresh_sources()
+        created = calendar.sync()
+        return {"created": [db.get_bot(bot_id) for bot_id in created],
+                "last_sync": calendar.last_sync}
+
+    @api.get("/api/calendars/{source_id}/test", tags=["calendars"])
+    @api.post("/api/calendars/{source_id}/test", tags=["calendars"])
+    def test_calendar_source(source_id: int):
+        row = source_or_404(source_id)
+        source = stored_source(row)
+        try:
+            found = source.events(time.time() - 86400, time.time() + 30 * 86400)
+        except (CalDavError, IcsError) as e:
+            raise HTTPException(400, str(e)) from e
+        return {"events": [asdict(e) for e in found]}
+
+    @api.patch("/api/calendars/{source_id}", tags=["calendars"])
+    def patch_calendar_source(source_id: int, p: CalendarSourcePatch):
+        row = source_or_404(source_id)
+        fields: dict = {}
+        config = dict(row["config"])
+        for key, value in p.model_dump(exclude_none=True).items():
+            if key in ("label", "enabled"):
+                fields[key] = value
+            elif key == "password":
+                config[key] = value
+            else:
+                config[key] = value.strip()
+        if "url" in p.model_fields_set and row["kind"] == "ics":
+            check_ics_url(config.get("url", ""))
+        fields["config"] = config
+        db.update_calendar_source(source_id, **fields)
+        refresh_sources()
+        return source_out(db.get_calendar_source(source_id))
+
+    @api.delete("/api/calendars/{source_id}", tags=["calendars"])
+    def delete_calendar_source(source_id: int):
+        source_or_404(source_id)
+        db.delete_calendar_source(source_id)
+        refresh_sources()
         return {"ok": True}
 
     # -- Kommende Termine (Anzeige) --------------------------------------------------------

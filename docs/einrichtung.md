@@ -96,6 +96,32 @@ Kurz vor Terminbeginn (~15 Minuten) legt Koprotokoll den Bot automatisch an.
 > **Für Organisationen:** Die App-Registrierung ist einmalig pro Mandant – am besten durch
 > die IT erstellen lassen. Privatnutzende registrieren ihre eigene App (Schritte oben).
 
+## Weitere Kalender-Quellen: CalDAV & ICS
+
+Neben Google und Microsoft lassen sich weitere Kalender als Quellen für die Bot-Einplanung
+hinzufügen (mehrere Quellen parallel) – unter **Integrationen & API** → **Kalender-Quellen**.
+
+**CalDAV-Konto (Hauptweg, „Anmeldung mit Passwort“):** Anbieter wählen (iCloud, Posteo,
+mailbox.org, Fastmail, Nextcloud / eigener Server oder „Anderer Anbieter“), Benutzername und
+Passwort eingeben. Koprotokoll sucht die Kalender des Kontos automatisch (RFC 6764) und wertet
+sie **nur lesend** aus. Bei den meisten Anbietern muss ein **App-Passwort** angelegt werden
+(Posteo: Einstellungen → Passwörter; iCloud: appleid.apple.com → App-Passwörter; Fastmail:
+Settings → Privacy & Security → App passwords). Schlägt die Erkennung fehl, öffnen sich die
+**Erweiterten Einstellungen** – dort lassen sich Server- und Kalender-URL von Hand eintragen
+(z. B. bei Nextcloud `https://cloud.example.com/remote.php/dav` bzw. die URL der einzelnen
+Kalender-Kollektion aus den Kalender-Einstellungen).
+
+**ICS-Abolink (Experten-Option):** Unter „ICS-Abolink (Experten-Option)“ lässt sich ein
+iCalendar-Abo eintragen (Outlook „Kalender veröffentlichen“, Google „geheime iCal-Adresse“,
+Nextcloud, iCloud …) – inklusive Serien-Terminen und Zeitzonen, ebenfalls nur lesend.
+
+Beide Quellen erscheinen unter „Deine nächsten Termine“ und treiben die automatische
+Bot-Einplanung an. Quellen lassen sich einzeln aktivieren/deaktivieren und wieder entfernen.
+
+> Die Preset-Adressen sind die clients-üblichen CalDAV-Einstiege der Anbieter (Stand 10/2026)
+> und nur teilweise gegen die Anbieter-Dokumentation geprüft. Weicht ein Anbieter ab, genügt
+> der Eintrag der Server- oder Kalender-URL unter „Erweiterte Einstellungen“.
+
 ## Konfiguration
 
 | Variable | Standard | Bedeutung |

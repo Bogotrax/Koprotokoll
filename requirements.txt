@@ -9,3 +9,6 @@ sherpa-onnx>=1.12
 playwright>=1.45
 # MCP-Server für KI-Assistenten
 mcp>=2
+# Kalender-Quellen: ICS-Abos und CalDAV (Serien, Zeitzonen, ganztägig)
+icalendar>=6
+recurring-ical-events>=2
