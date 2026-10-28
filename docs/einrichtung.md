@@ -2,6 +2,10 @@
 
 [← zurück zum README](../README.md)
 
+> **Tipp:** Am schnellsten geht es mit [Pinokio](https://desktop.pinokio.co/):
+> [Koprotokoll in Pinokio öffnen](https://pinokio.co/apps/github-com-bogotrax-koprotokoll-pinokio) → **Installieren** → **Starten**.
+> Die manuelle Installation steht im [README](../README.md#-schnellstart).
+
 ## Lokales LLM für Zusammenfassungen (empfohlen)
 
 Ohne LLM erstellt die App eine einfache extraktive Zusammenfassung. Für echte
