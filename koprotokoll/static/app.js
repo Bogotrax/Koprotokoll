@@ -685,14 +685,23 @@ $("#btn-integrations").addEventListener("click", () => {
 
 $("#btn-close-integrations").addEventListener("click", () => closeIntegrations());
 
-async function route() {
+async function route(initial = false) {
   const hash = location.hash;
   const m = hash.match(/^#meeting=(\d+)/);
   if (m) await openMeeting(+m[1]).catch(() => showView("empty"));
-  else if (hash.startsWith("#integrations")) await openIntegrations();
+  else if (hash.startsWith("#integrations")) {
+    // Beim Seitenstart öffnet eine alte "#integrations"-URL ohne Parameter die Ansicht nicht
+    // mehr automatisch (sonst landet man nach einem Neustart darin); OAuth-Rückleitungen mit
+    // "#integrations?…" (Fehlermeldungen) und die Zurück-Taste öffnen sie weiterhin.
+    if (initial && !hash.includes("?")) {
+      history.replaceState(null, "", "#");
+      showView("empty");
+      await renderUpcoming();
+    } else await openIntegrations();
+  }
   else { showView("empty"); await renderUpcoming(); }
 }
-window.addEventListener("hashchange", route);
+window.addEventListener("hashchange", () => route());
 
 // ---------------------------------------------------------- Start
 (async () => {
@@ -702,5 +711,5 @@ window.addEventListener("hashchange", route);
     $("#engine").title = `ASR: ${st.asr_model}\nSprechererkennung: ${st.diarization ? "an" : "aus"}\nLLM: ${st.llm.available ? st.llm.model : "nicht erreichbar (" + st.llm.url + ")"}`;
   } catch { /* Server-Status optional */ }
   await loadMeetings();
-  await route();
+  await route(true);
 })();
