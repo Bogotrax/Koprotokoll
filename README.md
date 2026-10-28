@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pinokio.co/apps/github-com-bogotrax-koprotokoll-pinokio"><img alt="Mit Pinokio installieren – 1-Klick" src="https://img.shields.io/badge/%E2%9A%A1_Mit_Pinokio_installieren-1--Klick-FF6C37?labelColor=1a1a1a"></a>
   <a href="LICENSE"><img alt="Lizenz: MIT" src="https://img.shields.io/badge/Lizenz-MIT-6c3ce1"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11%2B-3776ab">
   <img alt="Spracherkennung: NVIDIA Parakeet" src="https://img.shields.io/badge/ASR-NVIDIA%20Parakeet-76b900">
@@ -129,7 +130,20 @@ Mehr dazu in der [Architektur-Übersicht](docs/architektur.md).
 
 ## 🚀 Schnellstart
 
-Voraussetzungen: **Python 3.11+** und **ffmpeg**. Eine Grafikkarte ist nicht nötig.
+**Variante 1 – mit [Pinokio](https://desktop.pinokio.co/) (1-Klick, am einfachsten):**
+
+<p align="center">
+  <a href="https://pinokio.co/apps/github-com-bogotrax-koprotokoll-pinokio"><img alt="⚡ Mit Pinokio installieren – 1-Klick" src="https://img.shields.io/badge/%E2%9A%A1_Mit_Pinokio_installieren-1--Klick-FF6C37?style=for-the-badge&labelColor=1a1a1a" height="50"></a>
+</p>
+
+1. [Pinokio installieren](https://desktop.pinokio.co/download.html) (Windows, macOS, Linux) und öffnen.
+2. [Koprotokoll in Pinokio öffnen](https://pinokio.co/apps/github-com-bogotrax-koprotokoll-pinokio) und **Installieren** klicken – Pinokio klont den Code, richtet die Python-Umgebung ein und installiert den Browser für den Meeting-Bot.
+3. **Starten** klicken und über **Oberfläche öffnen** die Weboberfläche aufrufen (Standard: `http://127.0.0.1:8000`).
+
+Pinokio läuft bereits? Dann [Koprotokoll direkt installieren](http://localhost:42000/pinokio/download?uri=https%3A%2F%2Fgithub.com%2FBogotrax%2Fkoprotokoll-pinokio&path=api).
+Menü und Details: [koprotokoll-pinokio](https://github.com/Bogotrax/koprotokoll-pinokio).
+
+**Variante 2 – manuell.** Voraussetzungen: **Python 3.11+** und **ffmpeg**. Eine Grafikkarte ist nicht nötig.
 
 ```bash
 git clone https://github.com/enving/Koprotokoll.git
