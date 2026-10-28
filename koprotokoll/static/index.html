@@ -25,7 +25,7 @@
     <div id="search-results" hidden></div>
     <div id="bot-live"></div>
     <nav id="meeting-list" aria-label="Meetings"></nav>
-    <button id="btn-integrations" class="nav-link">⚙ Integrationen &amp; API</button>
+    <button id="btn-integrations" class="nav-link" title="Integrationen &amp; API öffnen bzw. schließen">⚙ Integrationen &amp; API</button>
   </aside>
 
   <main id="main">
@@ -41,7 +41,13 @@
     </section>
 
     <section id="integrations" hidden>
-      <h1>Integrationen &amp; API</h1>
+      <header class="meeting-head">
+        <h1>Integrationen &amp; API</h1>
+        <div class="head-actions">
+          <button id="btn-close-integrations" title="Integrationen &amp; API schließen"
+            aria-label="Integrationen &amp; API schließen">✕</button>
+        </div>
+      </header>
       <div class="grid2">
         <div>
           <div class="card">

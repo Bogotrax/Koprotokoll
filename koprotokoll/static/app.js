@@ -494,12 +494,24 @@ $("#bot-form").addEventListener("submit", async (e) => {
 // ---------------------------------------------------------- Integrationen
 async function openIntegrations() {
   showView("integrations");
-  if (location.hash.split("?")[0] !== "#integrations") history.replaceState(null, "", "#integrations");
+  // pushState statt replaceState: Die Zurück-Taste des Browsers führt zurück (route() bei hashchange).
+  if (location.hash.split("?")[0] !== "#integrations") history.pushState(null, "", "#integrations");
   const params = new URLSearchParams(location.hash.split("?")[1] || "");
   const err = params.get("google_error") || params.get("microsoft_error");
   if (err) alert(`Anmeldung abgebrochen: ${err}`);
   renderBots();
   await Promise.all([renderGoogle(), renderMicrosoft(), renderSources(), renderKeys(), renderHooks()]);
+}
+
+// Integrationen schließen: zurück zum zuletzt geöffneten Meeting, sonst zur Übersicht.
+async function closeIntegrations() {
+  if (state.current) {
+    await openMeeting(state.current.id, { keepTab: true }).catch(() => showView("meeting"));
+    return;
+  }
+  showView("empty");
+  history.replaceState(null, "", "#");
+  await renderUpcoming();
 }
 
 async function renderGoogle() {
@@ -736,7 +748,12 @@ $("#hook-form").addEventListener("submit", async (e) => {
   } catch (err) { alert(err.message); }
 });
 
-$("#btn-integrations").addEventListener("click", openIntegrations);
+$("#btn-integrations").addEventListener("click", () => {
+  if ($("#integrations").hidden) openIntegrations();
+  else closeIntegrations();
+});
+
+$("#btn-close-integrations").addEventListener("click", () => closeIntegrations());
 
 async function route() {
   const hash = location.hash;
