@@ -23,7 +23,6 @@ log = logging.getLogger(__name__)
 CAPTURE_JS = (Path(__file__).parent / "capture.js").read_text(encoding="utf-8")
 ACTIVE = ("joining", "waiting_admit", "recording", "stopping")
 SOUND_LEVEL = 0.003  # RMS-Schwelle für „es wird gesprochen“
-ALONE_GRACE_S = 15
 
 
 class BotManager:
@@ -205,7 +204,7 @@ class BotSession:
             return False
         if adapter.alone(page):
             self.alone_since = self.alone_since or now
-            if now - self.alone_since > ALONE_GRACE_S:
+            if now - self.alone_since > s.bot_alone_grace_seconds:
                 return False
         else:
             self.alone_since = None

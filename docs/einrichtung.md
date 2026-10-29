@@ -111,5 +111,6 @@ Kurz vor Terminbeginn (~15 Minuten) legt Koprotokoll den Bot automatisch an.
 | `KOPROTOKOLL_BOT_CHROME` | – | Pfad zu Chrome/Chromium statt Playwright-Chromium |
 | `KOPROTOKOLL_BOT_SILENCE_MINUTES` | `1` | Meeting verlassen nach so langer Stille |
 | `KOPROTOKOLL_BOT_MAX_MINUTES` | `180` | Höchstdauer einer Aufnahme |
+| `KOPROTOKOLL_BOT_ALONE_SECONDS` | `15` | Allein-Erkennung-Zeitraum (Sekunden) |
 | `KOPROTOKOLL_BOT_ADMIT_MINUTES` | `10` | Wartezeit auf Einlass |
 | `KOPROTOKOLL_JITSI_HOSTS` | – | Eigene Jitsi-Instanzen (kommagetrennte Hostnames) |

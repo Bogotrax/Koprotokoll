@@ -58,6 +58,18 @@ def test_bot_max_minutes_env_override(monkeypatch):
     assert Settings().bot_max_minutes == 45
 
 
+def test_bot_alone_grace_seconds_default(monkeypatch):
+    """Die Allein-Erkennung-Schonfrist bleibt standardmäßig bei 15 Sekunden."""
+    monkeypatch.delenv("KOPROTOKOLL_BOT_ALONE_SECONDS", raising=False)
+    assert Settings().bot_alone_grace_seconds == 15
+
+
+def test_bot_alone_grace_seconds_env_override(monkeypatch):
+    """Die Allein-Erkennung-Schonfrist lässt sich per Umgebung anpassen."""
+    monkeypatch.setenv("KOPROTOKOLL_BOT_ALONE_SECONDS", "30")
+    assert Settings().bot_alone_grace_seconds == 30
+
+
 # --------------------------------------------------------------------------- Plattformen
 def test_detect_platform():
     assert detect_platform("https://meet.google.com/abc-defg-hij") == "google_meet"
