@@ -96,10 +96,11 @@ class CalendarScheduler:
             if not found or found[1] not in SUPPORTED:
                 continue
             url, platform = found
-            kept.add(f"{source.name}:{event.id}")
+            key = f"{source.name}:{event.id}@{int(start)}"  # verschoben → neuer Bot
+            kept.add(key)
             bot_id = self.db.create_bot(
                 url, platform, event.title or "Meeting", max(now, start - JOIN_EARLY_S),
-                calendar_event_id=f"{source.name}:{event.id}@{int(start)}",  # verschoben → neuer Bot
+                calendar_event_id=key,
                 meta={"calendar_event_id": event.id, "calendar_source": source.name,
                       "event_start": start, "event_end": end, "attendees": event.attendees},
             )
@@ -119,6 +120,6 @@ class CalendarScheduler:
             key = bot.get("calendar_event_id") or ""
             if key.startswith(prefix) and key not in kept:
                 self.db.update_bot(bot["id"], status="cancelled",
-                                   error="Termin entfällt (abgesagt, entfernt oder ohne Meeting-Link)",
+                                   error="Termin entfällt (abgesagt, entfernt, verschoben oder ohne Meeting-Link)",
                                    ended_at=time.time())
                 log.info("Bot %s storniert – Termin %s findet nicht statt", bot["id"], key)
