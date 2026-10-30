@@ -555,7 +555,7 @@ def test_scheduler_plans_ahead_and_cancels_gone_events(tmp_path):
     now = time.time()
     far = CalendarEvent(
         id="e1", title="Später", start=now + 3 * 3600, end=now + 4 * 3600,
-        description="https://teams.live.com/meet/1234567890123?p=token")
+        description="https://meet.jit.si/Planungstest")
 
     class FakeSource:
         name = "fake"
@@ -579,12 +579,13 @@ def test_scheduler_plans_ahead_and_cancels_gone_events(tmp_path):
     created = cal.sync(now)
     assert len(created) == 1
     bot = db.get_bot(created[0])
-    assert bot["platform"] == "teams"
+    assert bot["platform"] == "jitsi"
     assert bot["status"] == "scheduled"
     assert bot["join_at"] == pytest.approx(far.start - scheduler_mod.JOIN_EARLY_S, abs=2)
 
     # Idempotent: erneuter Abgleich legt keinen Zwilling an
     assert cal.sync(now) == []
+    assert db.get_bot(bot["id"])["status"] == "scheduled"  # Planungsstatus bleibt
 
     # Termin wird abgesagt → der geplante Bot wird beim nächsten Abgleich storniert
     far.cancelled = True
