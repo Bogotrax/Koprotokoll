@@ -595,6 +595,57 @@ def test_scheduler_plans_ahead_and_cancels_gone_events(tmp_path):
     assert "entfällt" in stale["error"]
 
 
+def test_scheduler_source_error_keeps_scheduled_bots(tmp_path):
+    """Ein Ausfall der Kalenderquelle darf geplante Bots nicht stornieren."""
+    import koprotokoll.scheduler as scheduler_mod
+    from koprotokoll.calendar_source import CalendarEvent
+    from koprotokoll.db import Database
+
+    now = time.time()
+    far = CalendarEvent(
+        id="e1", title="Später", start=now + 3 * 3600, end=now + 4 * 3600,
+        description="https://meet.jit.si/Quellenfehler")
+
+    class FlakySource:
+        name = "flaky"
+        label = "Wackel-Kalender"
+
+        def __init__(self):
+            self.items = [far]
+            self.down = False
+
+        def enabled(self):
+            return True
+
+        def events(self, time_min, time_max):
+            if self.down:
+                raise RuntimeError("Netz weg")
+            return [e for e in self.items if time_min <= e.start < time_max]
+
+    src = FlakySource()
+    db = Database(tmp_path / "t.db")
+    cal = scheduler_mod.CalendarScheduler(db, [src])
+
+    # Termin wird geplant
+    created = cal.sync(now)
+    assert len(created) == 1
+    bot_id = created[0]
+    assert db.get_bot(bot_id)["status"] == "scheduled"
+
+    # Quelle fällt aus → es wird nichts aufgeräumt, der Fehler wird vermerkt
+    src.down = True
+    assert cal.sync(now) == []
+    survived = db.get_bot(bot_id)
+    assert survived["status"] == "scheduled"
+    assert "flaky" in cal.last_sync.get("error", "")
+
+    # Quelle kommt zurück und meldet den Termin entfallen → jetzt wird storniert
+    src.down = False
+    far.cancelled = True
+    cal.sync(now)
+    assert db.get_bot(bot_id)["status"] == "cancelled"
+
+
 def test_upcoming_lists_calendar_events(monkeypatch, tmp_path):
     now = time.time()
     events = [
