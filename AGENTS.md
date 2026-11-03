@@ -155,3 +155,16 @@ Der Gesamtplan mit Arbeitspaketen, Reihenfolge und „Fertig, wenn“-Kriterien 
 - Oberfläche manuell geprüft, falls betroffen (keine Fehler in der Browser-Konsole)
 - Doku (`README.md`, `docs/*.md`, diese Datei bei neuen Konventionen) aktualisiert
 - Commit-Nachricht auf Deutsch: kurze Zusammenfassung, Leerzeile, Begründung
+
+## Beiträge und überprüfbare Nachweise
+
+Menschen und Agenten verwenden denselben Issue- und PR-Ablauf oben; Agenten nennen
+Modell und verantwortliche Person. Vor einem PR die Änderungen und den aktuellen
+Zielzweig prüfen, passende Tests ausführen und im PR Befehl, Ergebnis, übersprungene
+Tests und nicht geprüfte Fälle nennen. Abhängige PRs und die getesteten Commit-IDs
+angeben. Ein Mensch prüft und gibt Agenten-PRs frei; Agenten mergen nicht selbst.
+
+Für visuelle oder manuelle Prüfungen dient [docs/nachweise/README.md](docs/nachweise/README.md).
+Im PR den dauerhaft erreichbaren Nachweis verlinken und erklären, was er tatsächlich
+zeigt und welche Schritte außerhalb der Aufnahme geschahen. Videos und Zugangsdaten
+gehören nicht in den Git-Verlauf; kleine Skripte und Beschreibungen dürfen ins Repo.
