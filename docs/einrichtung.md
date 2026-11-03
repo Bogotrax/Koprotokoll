@@ -25,8 +25,10 @@ er allein ist, zu lange Stille herrscht oder die Höchstdauer erreicht ist. Dana
 normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
 
 - **Manuell**: Meet-Link in das Feld in der Seitenleiste einfügen oder `POST /api/bots`
-- **Automatisch**: Google verbinden → der Bot tritt allen Kalenderterminen mit Meet-Link bei
-  (abgelehnte Termine werden übersprungen), etwa eine Minute vor Beginn
+- **Automatisch**: Google oder Microsoft verbinden → der Bot tritt allen Kalenderterminen mit
+  Meeting-Link bei (abgelehnte und abgesagte Termine werden übersprungen). Geplante Bots
+  erscheinen bis zu 24 Stunden im Voraus in der Bot-Liste und lassen sich dort stornieren;
+  beigetreten wird etwa eine Minute vor Beginn, entfallene Termine räumt der Abgleich automatisch weg.
 - **Eigenes Google-Konto für den Bot (empfohlen)**: Google lässt anonyme Gäste oft gar nicht
   oder nur nach Freigabe herein. Einmalig `python -m koprotokoll bot-login` ausführen und im
   geöffneten Browser mit einem eigenen Bot-Konto anmelden.
