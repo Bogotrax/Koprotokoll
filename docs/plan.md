@@ -134,25 +134,29 @@ messen), Kodiktat über Koprotokoll diktiert, Tests für den neuen Endpunkt grü
 - Gemeinsame Schnittstelle `CalendarSource.events(von, bis) → [Termin]` mit
   Titel, Beginn, Ende, Teilnehmenden, Meeting-Link, eigener Zusage. Der heutige
   `CalendarScheduler` arbeitet dann mit **beliebig vielen Quellen**.
-- Quellen in dieser Reihenfolge:
+- Quellen in dieser Reihenfolge (Stand 2026-10-27):
 
-| Quelle | Für | Technik | Hinweise |
+| Quelle | Für | Technik | Status |
 |---|---|---|---|
-| **ICS-Abo-Link** | jeden Kalender (Outlook „Kalender veröffentlichen“, Google „geheime iCal-Adresse“, Nextcloud, iCloud) | `icalendar` + `recurring-ical-events` | nur lesen, einfachster Einstieg, Serien-Termine beachten |
-| **CalDAV** | Nextcloud, iCloud, Posteo, mailbox.org, Fastmail, Thunderbird-Kalender auf CalDAV | `caldav` | Benutzername + App-Passwort; kann auch Aufgaben (VTODO) schreiben |
-| **Outlook lokal (Windows)** | klassisches Outlook-Desktop mit Exchange oder PST | COM über `pywin32` (`Outlook.Application`) | ganz ohne Cloud-Registrierung; das **neue** Outlook für Windows kann kein COM |
-| **Microsoft 365 / Exchange Online** | neues Outlook, Outlook im Web, Teams-Termine | Microsoft Graph, Anmeldung per Gerätecode | einmalig eine App in Entra ID registrieren; Rechte `Calendars.Read`, `Mail.Send` |
-| **Exchange lokal (On-Premises)** | Firmen mit eigenem Exchange | EWS über `exchangelib` | |
-| **macOS-Kalender** | Apple Kalender (enthält oft alle Konten) | EventKit über `pyobjc` | gehört in die Begleit-App, nicht auf den Server |
+| **ICS-Abo-Link** | jeden Kalender (Outlook „Kalender veröffentlichen“, Google „geheime iCal-Adresse“, Nextcloud, iCloud) | `icalendar` + `recurring-ical-events` | ✔ nur lesen, in der Oberfläche als **Experten-Option** (Serien-Termine, Zeitzonen, ganztägig) |
+| **CalDAV** | Nextcloud, iCloud, Posteo, mailbox.org, Fastmail, Thunderbird-Kalender auf CalDAV | schlanker `urllib`-Transport (PROPFIND/REPORT) + `icalendar`; Provider-Presets, mehrere Konten parallel | ✔ nur lesen; Benutzername + App-Passwort (Aufgaben/VTODO schreiben → AP3) |
+| **Microsoft 365 / Exchange Online** | neues Outlook, Outlook im Web, Teams-Termine | Microsoft Graph, Anmeldung per OAuth | ✔ Karte „Microsoft Kalender & Outlook“ (App in Entra ID registrieren, Rechte `Calendars.Read`, `Mail.Send`) |
+| **Outlook lokal (Windows)** | klassisches Outlook-Desktop mit Exchange oder PST | COM über `pywin32` (`Outlook.Application`) | (später) – ganz ohne Cloud-Registrierung; das **neue** Outlook für Windows kann kein COM |
+| **Exchange lokal (On-Premises)** | Firmen mit eigenem Exchange | EWS über `exchangelib` | (später) |
+| **macOS-Kalender** | Apple Kalender (enthält oft alle Konten) | EventKit über `pyobjc` | (später) – gehört in die Begleit-App, nicht auf den Server |
 
-- Einstellungsseite „Kalender“: Quellen hinzufügen, testen, pro Quelle wählen: *Bot schicken*,
-  *Begleit-App fragen* oder *nichts tun*.
+- CalDAV-Einrichtung in Stufen: Anbieter-Preset wählen → Server-Erkennung (RFC 6764) → bei
+  Fehlern „Erweiterte Einstellungen“ für Server- und Kalender-URL. Die Preset-Adressen sind
+  clients-übliche Einstiege (Stand 10/2026, nur teilweise gegen die Anbieter-Doku geprüft) und
+  vor dem Release zu verifizieren.
+- Einstellungsseite „Kalender-Quellen“: Quellen hinzufügen, testen, einzeln aktivieren/
+  deaktivieren ✔; pro Quelle *Bot schicken*, *Begleit-App fragen* oder *nichts tun* (später).
 - Meeting-Links erkennen für Meet, Teams, Zoom, Jitsi (`meet.jit.si` und eigene Instanzen per
   Einstellung), BBB, Webex.
 
 **Fertig, wenn:** ICS und CalDAV mit einem echten Nextcloud-Kalender getestet sind (Tests mit
-nachgebautem Server bzw. ICS-Dateien inkl. Serien und Zeitzonen), Outlook-COM auf Windows
-manuell geprüft ist.
+nachgebautem Server bzw. ICS-Dateien inkl. Serien und Zeitzonen – ✔ `tests/test_integrations.py`,
+echte Anbieter-Konten stehen noch aus), Outlook-COM auf Windows manuell geprüft ist (später).
 
 ### AP3 – E-Mail und Aufgaben in die eigenen Programme (S–M) ⭐
 

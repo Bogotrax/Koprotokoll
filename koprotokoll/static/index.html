@@ -65,6 +65,40 @@
             <h3>Microsoft Kalender &amp; Outlook</h3>
             <div id="microsoft-box"></div>
           </div>
+          <div class="card">
+            <h3>Kalender-Quellen</h3>
+            <p class="muted small">Weitere Kalender als Quelle für die Bot-Einplanung: CalDAV-Konten
+              (Posteo, mailbox.org, iCloud, Fastmail, Nextcloud …) – mehrere Quellen sind möglich.</p>
+            <ul id="source-list" class="list"></ul>
+            <form id="caldav-form" class="stack">
+              <div class="row">
+                <select id="src-provider" title="Anbieter"></select>
+                <input id="src-user" placeholder="Benutzername / E-Mail" autocomplete="username">
+              </div>
+              <div class="row">
+                <input id="src-pass" type="password" placeholder="Passwort (oft App-Passwort)" autocomplete="current-password">
+                <input id="src-label" placeholder="Name (optional)">
+              </div>
+              <details id="src-advanced">
+                <summary>Erweiterte Einstellungen</summary>
+                <div class="stack">
+                  <input id="src-server" placeholder="Server-URL, z. B. https://cloud.example.com">
+                  <input id="src-calurl" placeholder="Kalender-URL (optional, direkt zur Kollektion)">
+                  <input id="src-own-email" placeholder="Eigene E-Mail für Teilnehmer-Antworten (optional)">
+                </div>
+              </details>
+              <button class="primary">CalDAV-Konto hinzufügen</button>
+            </form>
+            <div id="src-msg" class="muted small"></div>
+            <details id="ics-expert">
+              <summary>ICS-Abolink (Experten-Option)</summary>
+              <form id="ics-form" class="stack">
+                <input id="ics-label" placeholder="Name, z. B. Outlook-Abonnement">
+                <input id="ics-url" placeholder="https://…/kalender.ics oder Pfad zur Datei">
+                <button>ICS-Quelle hinzufügen</button>
+              </form>
+            </details>
+          </div>
         </div>
         <div>
           <div class="card">
