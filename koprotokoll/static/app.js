@@ -500,7 +500,7 @@ async function openIntegrations() {
   const err = params.get("google_error") || params.get("microsoft_error");
   if (err) alert(`Anmeldung abgebrochen: ${err}`);
   renderBots();
-  await Promise.all([renderGoogle(), renderMicrosoft(), renderKeys(), renderHooks()]);
+  await Promise.all([renderGoogle(), renderMicrosoft(), renderSources(), renderKeys(), renderHooks()]);
 }
 
 // Integrationen schließen: zurück zum zuletzt geöffneten Meeting, sonst zur Übersicht.
@@ -622,6 +622,76 @@ async function renderMicrosoft() {
   ].filter(Boolean));
 }
 
+// ---------------------------------------------------------- Kalender-Quellen
+const KIND_LABEL = { ics: "ICS", caldav: "CalDAV" };
+
+async function renderSources() {
+  const [sources, presets] = await Promise.all([
+    api("/api/calendars").catch(() => []),
+    api("/api/calendars/presets").catch(() => []),
+  ]);
+  const select = $("#src-provider");
+  if (select && !select.options.length) {
+    select.replaceChildren(...presets.map((p) => h("option", { value: p.id }, p.label)));
+    select.addEventListener("change", () => {
+      const preset = presets.find((p) => p.id === select.value);
+      $("#src-user").placeholder = (preset && preset.hint) || "Benutzername / E-Mail";
+    });
+    select.dispatchEvent(new Event("change"));
+  }
+  $("#source-list").replaceChildren(...sources.map((s) => h("li", {},
+    h("span", { class: "grow" }, h("b", {}, s.label), " ",
+      h("span", { class: "muted small" },
+        `${KIND_LABEL[s.kind] || s.kind}${s.password_set ? " · Passwort gesetzt" : ""}`)),
+    h("button", { title: s.enabled ? "Deaktivieren" : "Aktivieren",
+      onclick: async () => {
+        await api(`/api/calendars/${s.id}`, jsonOpts("PATCH", { enabled: !s.enabled }));
+        renderSources();
+      } }, s.enabled ? "An" : "Aus"),
+    h("button", { title: "Quelle entfernen",
+      onclick: async () => {
+        if (confirm(`Quelle „${s.label}“ entfernen?`)) {
+          await api(`/api/calendars/${s.id}`, { method: "DELETE" });
+          renderSources();
+        }
+      } }, "✕"))));
+}
+
+$("#caldav-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("#src-msg");
+  msg.textContent = "";
+  try {
+    await api("/api/calendars", jsonOpts("POST", {
+      kind: "caldav", provider: $("#src-provider").value,
+      username: $("#src-user").value.trim(), password: $("#src-pass").value,
+      label: $("#src-label").value.trim(),
+      server_url: $("#src-server").value.trim(), url: $("#src-calurl").value.trim(),
+      own_email: $("#src-own-email").value.trim(),
+    }));
+    e.target.reset();
+    $("#src-advanced").open = false;
+    renderSources();
+  } catch (err) {
+    // Stufenmodell: Fehlermeldung zeigen, manuelle Daten in den erweiterten Einstellungen anbieten
+    msg.textContent = err.message;
+    $("#src-advanced").open = true;
+  }
+});
+
+$("#ics-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("#src-msg");
+  msg.textContent = "";
+  try {
+    await api("/api/calendars", jsonOpts("POST", {
+      kind: "ics", label: $("#ics-label").value.trim(), url: $("#ics-url").value.trim(),
+    }));
+    e.target.reset();
+    renderSources();
+  } catch (err) { msg.textContent = err.message; }
+});
+
 async function renderUpcoming() {
   const events = await api("/api/upcoming");
   const list = $("#upcoming-list");
@@ -685,20 +755,11 @@ $("#btn-integrations").addEventListener("click", () => {
 
 $("#btn-close-integrations").addEventListener("click", () => closeIntegrations());
 
-async function route(initial = false) {
+async function route() {
   const hash = location.hash;
   const m = hash.match(/^#meeting=(\d+)/);
   if (m) await openMeeting(+m[1]).catch(() => showView("empty"));
-  else if (hash.startsWith("#integrations")) {
-    // Beim Seitenstart öffnet eine alte "#integrations"-URL ohne Parameter die Ansicht nicht
-    // mehr automatisch (sonst landet man nach einem Neustart darin); OAuth-Rückleitungen mit
-    // "#integrations?…" (Fehlermeldungen) und die Zurück-Taste öffnen sie weiterhin.
-    if (initial && !hash.includes("?")) {
-      history.replaceState(null, "", "#");
-      showView("empty");
-      await renderUpcoming();
-    } else await openIntegrations();
-  }
+  else if (hash.startsWith("#integrations")) await openIntegrations();
   else { showView("empty"); await renderUpcoming(); }
 }
 window.addEventListener("hashchange", () => route());
@@ -711,5 +772,5 @@ window.addEventListener("hashchange", () => route());
     $("#engine").title = `ASR: ${st.asr_model}\nSprechererkennung: ${st.diarization ? "an" : "aus"}\nLLM: ${st.llm.available ? st.llm.model : "nicht erreichbar (" + st.llm.url + ")"}`;
   } catch { /* Server-Status optional */ }
   await loadMeetings();
-  await route(true);
+  await route();
 })();

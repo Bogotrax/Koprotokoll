@@ -130,7 +130,7 @@ Mehr dazu in der [Architektur-Übersicht](docs/architektur.md).
 
 ## 🚀 Schnellstart
 
-**Variante 1 – mit [Pinokio](https://desktop.pinokio.co/) (1-Klick, am einfachsten):**
+**Variante 1 – mit [Pinokio](https://desktop.pinokio.co/) (Community-Installer):**
 
 <p align="center">
   <a href="https://pinokio.co/apps/github-com-bogotrax-koprotokoll-pinokio"><img alt="⚡ Mit Pinokio installieren – 1-Klick" src="https://img.shields.io/badge/%E2%9A%A1_Mit_Pinokio_installieren-1--Klick-FF6C37?style=for-the-badge&labelColor=1a1a1a" height="50"></a>
@@ -141,6 +141,7 @@ Mehr dazu in der [Architektur-Übersicht](docs/architektur.md).
 3. **Starten** klicken und über **Oberfläche öffnen** die Weboberfläche aufrufen (Standard: `http://127.0.0.1:8000`).
 
 Pinokio läuft bereits? Dann [Koprotokoll direkt installieren](http://localhost:42000/pinokio/download?uri=https%3A%2F%2Fgithub.com%2FBogotrax%2Fkoprotokoll-pinokio&path=api).
+Der Community-Installer lädt den [Fork von Bogotrax](https://github.com/Bogotrax/Koprotokoll).
 Menü und Details: [koprotokoll-pinokio](https://github.com/Bogotrax/koprotokoll-pinokio).
 
 **Variante 2 – manuell.** Voraussetzungen: **Python 3.11+** und **ffmpeg**. Eine Grafikkarte ist nicht nötig.
@@ -185,7 +186,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] REST-API, Webhooks, MCP-Server
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [x] Kalender aus **Outlook/Microsoft** (auch Privatkonten) – Termine der nächsten 7 Tage auf der Startseite
-- [ ] **CalDAV** (Nextcloud, iCloud, Thunderbird …) als weitere Kalenderquelle
+- [x] **CalDAV** (Nextcloud, iCloud, Posteo, mailbox.org …) und **ICS-Abos** als weitere Kalenderquellen (nur lesen)
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
 - [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
 - [ ] Meeting-Bot für **BigBlueButton**, **Microsoft Teams** und **Zoom**
