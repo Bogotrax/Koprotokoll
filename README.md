@@ -171,7 +171,7 @@ Die Analyse des Vorbilds Fireflies.ai mit [REA](https://github.com/morluto/rea) 
 - [x] REST-API, Webhooks, MCP-Server
 - [ ] Deutsches Modell **Parakeet primeline** über **Kostimme**, Server für **Kodiktat** (`/v1/audio/transcriptions`)
 - [x] Kalender aus **Outlook/Microsoft** (auch Privatkonten) – Termine der nächsten 7 Tage auf der Startseite
-- [ ] **CalDAV** (Nextcloud, iCloud, Thunderbird …) als weitere Kalenderquelle
+- [x] **CalDAV** (Nextcloud, iCloud, Posteo, mailbox.org …) und **ICS-Abos** als weitere Kalenderquellen (nur lesen)
 - [ ] Recap per **SMTP** oder als **Entwurf** in Outlook/Thunderbird, Aufgaben-Export
 - [ ] **Kodiktat** als Begleit-App für Teams-/Zoom-Apps und Telefonate
 - [ ] Meeting-Bot für **BigBlueButton**, **Microsoft Teams** und **Zoom**
