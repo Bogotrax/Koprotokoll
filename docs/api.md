@@ -30,6 +30,7 @@ curl -H "Authorization: Bearer $KEY" "http://localhost:8000/api/meetings/1/expor
 | Transkription (OpenAI-kompatibel) | `POST /v1/audio/transcriptions` |
 | Schlüssel | `GET/POST /api/keys`, `DELETE /api/keys/{id}`, `GET /api/tokens` (Schlüssel prüfen) |
 | Google | `GET/DELETE /api/integrations/google`, `PUT …/client`, `GET …/connect`, `PATCH …/settings`, `POST …/sync` |
+| Kalender-Quellen | `GET/POST /api/calendars`, `GET /api/calendars/presets`, `PATCH/DELETE /api/calendars/{id}`, `GET/POST /api/calendars/{id}/test`, `POST /api/calendars/sync` |
 
 ## Diktieren: `/v1/audio/transcriptions` (OpenAI-kompatibel)
 

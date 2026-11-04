@@ -25,8 +25,10 @@ er allein ist, zu lange Stille herrscht oder die Höchstdauer erreicht ist. Dana
 normale Verarbeitung (Parakeet, Sprecher, Zusammenfassung).
 
 - **Manuell**: Meet-Link in das Feld in der Seitenleiste einfügen oder `POST /api/bots`
-- **Automatisch**: Google verbinden → der Bot tritt allen Kalenderterminen mit Meet-Link bei
-  (abgelehnte Termine werden übersprungen), etwa eine Minute vor Beginn
+- **Automatisch**: Google oder Microsoft verbinden → der Bot tritt allen Kalenderterminen mit
+  Meeting-Link bei (abgelehnte und abgesagte Termine werden übersprungen). Geplante Bots
+  erscheinen bis zu 24 Stunden im Voraus in der Bot-Liste und lassen sich dort stornieren;
+  beigetreten wird etwa eine Minute vor Beginn, entfallene Termine räumt der Abgleich automatisch weg.
 - **Eigenes Google-Konto für den Bot (empfohlen)**: Google lässt anonyme Gäste oft gar nicht
   oder nur nach Freigabe herein. Einmalig `python -m koprotokoll bot-login` ausführen und im
   geöffneten Browser mit einem eigenen Bot-Konto anmelden.
@@ -93,6 +95,41 @@ Kurz vor Terminbeginn (~15 Minuten) legt Koprotokoll den Bot automatisch an.
 
 > **Für Organisationen:** Die App-Registrierung ist einmalig pro Mandant – am besten durch
 > die IT erstellen lassen. Privatnutzende registrieren ihre eigene App (Schritte oben).
+
+## Weitere Kalender-Quellen: CalDAV & ICS
+
+Neben Google und Microsoft lassen sich weitere Kalender als Quellen für die Bot-Einplanung
+hinzufügen (mehrere Quellen parallel) – unter **Integrationen & API** → **Kalender-Quellen**.
+Voraussetzung für beide Quellen sind die Zusatzpakete `icalendar` und `recurring-ical-events`
+(`pip install icalendar recurring-ical-events`, in `requirements-dev.txt` enthalten).
+
+**CalDAV-Konto (Hauptweg, „Anmeldung mit Passwort“):** Anbieter wählen (iCloud, Posteo,
+mailbox.org, Fastmail, Nextcloud / eigener Server oder „Anderer Anbieter“), Benutzername und
+Passwort eingeben. Koprotokoll sucht die Kalender des Kontos automatisch (RFC 6764) und wertet
+sie **nur lesend** aus. Bei den meisten Anbietern muss ein **App-Passwort** angelegt werden
+(Posteo: Einstellungen → Passwörter; iCloud: appleid.apple.com → App-Passwörter; Fastmail:
+Settings → Privacy & Security → App passwords). Schlägt die Erkennung fehl, öffnen sich die
+**Erweiterten Einstellungen** – dort lassen sich Server- und Kalender-URL von Hand eintragen
+(z. B. bei Nextcloud `https://cloud.example.com/remote.php/dav` bzw. die URL der einzelnen
+Kalender-Kollektion aus den Kalender-Einstellungen).
+
+**ICS-Abolink (Experten-Option):** Unter „ICS-Abolink (Experten-Option)“ lässt sich ein
+iCalendar-Abo eintragen (Outlook „Kalender veröffentlichen“, Google „geheime iCal-Adresse“,
+Nextcloud, iCloud …) – inklusive Serien-Terminen und Zeitzonen, ebenfalls nur lesend.
+Lokale `.ics`-Dateien müssen im Datenordner (`KOPROTOKOLL_DATA`, Standard `./data`) liegen.
+
+> **Sicherheit:** Das CalDAV-Passwort wird **im Klartext** in der lokalen Datenbank
+> (`koprotokoll.sqlite3` im Datenordner) gespeichert. Legt deshalb unbedingt ein
+> **App-Passwort** an (nicht das Haupt-Kontopasswort) und widerruft es beim Entfernen
+> der Quelle. Das Passwort lässt sich später nicht mehr einsehen – die API gibt es nie
+> zurück, nur die Kennzeichnung, dass eines hinterlegt ist.
+
+Beide Quellen erscheinen unter „Deine nächsten Termine“ und treiben die automatische
+Bot-Einplanung an. Quellen lassen sich einzeln aktivieren/deaktivieren und wieder entfernen.
+
+> Die Preset-Adressen sind die clients-üblichen CalDAV-Einstiege der Anbieter (Stand 10/2026)
+> und nur teilweise gegen die Anbieter-Dokumentation geprüft. Weicht ein Anbieter ab, genügt
+> der Eintrag der Server- oder Kalender-URL unter „Erweiterte Einstellungen“.
 
 ## Konfiguration
 
