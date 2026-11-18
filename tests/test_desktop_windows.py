@@ -606,7 +606,8 @@ def patch_mutex(monkeypatch, handle, error):
     monkeypatch.setattr(desktop_windows, "_require_windows", lambda action: None)
     monkeypatch.setattr(desktop_windows.ctypes, "WinDLL",
                         lambda *args, **kwargs: FakeKernel32(handle), raising=False)
-    monkeypatch.setattr(desktop_windows.ctypes, "get_last_error", lambda: error)
+    monkeypatch.setattr(desktop_windows.ctypes, "get_last_error", lambda: error,
+                        raising=False)
 
 
 def test_freier_mutex_erlaubt_den_start(monkeypatch):
