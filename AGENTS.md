@@ -85,6 +85,7 @@ pytest -q                      # ~20 s, keine Modelle und kein Internet nötig
 | `koprotokoll/app.py` | FastAPI-App, alle REST-Endpunkte (`create_app()` ist die Fabrik, auch für Tests) |
 | `koprotokoll/pipeline.py` | Hintergrund-Queue: konvertieren → transkribieren → Sprecher → zusammenfassen |
 | `koprotokoll/speech.py` | Parakeet-Transkription, Diarisierung, `build_utterances()` (Wörter + Sprecher → Äußerungen) |
+| `koprotokoll/desktop_windows.py`, `windows_hotkey.py` | Windows-Infobereich, gespeicherte Einstellungen, Doppeltipp ohne Tastenaufzeichnung |
 | `koprotokoll/summarize.py` | LLM-Client (OpenAI-kompatibel), Prompts, Offline-Heuristik, „Frag das Meeting“ |
 | `koprotokoll/db.py` | SQLite-Schema, FTS5-Suche, Migrationen in `Database.__init__` |
 | `koprotokoll/bot/` | Meeting-Bot: `runner.py` (Steuerung), `platforms.py` (Meet-Adapter, Link-Erkennung), `capture.js` (WebRTC-Mitschnitt im Browser) |

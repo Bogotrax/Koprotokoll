@@ -78,6 +78,56 @@ läuft; ein automatischer Start bei der Anmeldung wird nicht eingerichtet.
 Der lokale Server bleibt für die Auswertung und Oberfläche geöffnet. Sein
 Startprotokoll liegt unter `data/desktop/server.log`.
 
+## Windows: per Alt-Doppeltipp aufnehmen
+
+Im aktivierten Python-Environment im Projektordner:
+
+```powershell
+python -m koprotokoll tray
+```
+
+Koprotokoll legt ein Symbol im Infobereich an. Es verwendet einen bereits
+laufenden lokalen Server oder startet ihn; das Symbol erscheint sofort und
+zeigt währenddessen **Server wird gestartet …**. Das Startprotokoll liegt unter
+`data/desktop/server.log`. Zusätzliche Pakete, ein Browser oder eine bestimmte
+Meeting-Anwendung sind nicht nötig. Ein zweiter Start meldet
+„Koprotokoll läuft bereits im Infobereich.“
+
+Ein Klick mit der linken oder rechten Maustaste öffnet das Menü:
+
+1. **Aufnahme starten** (bzw. **Aufnahme stoppen**) – die Aufnahme beginnt erst
+   nach diesem ausdrücklichen Klick oder dem Tastenkürzel.
+2. **Audioquelle** – ein Untermenü mit allen Eingängen, die Windows über
+   `ffmpeg` meldet, darunter **Systemton + Standardmikrofon (Windows)**. Die
+   Quelle wird über ihren Namen in `data/desktop/windows-einstellungen.json`
+   gespeichert und vor jeder Aufnahme neu zugeordnet. Ist sie nicht mehr
+   vorhanden oder nicht eindeutig, bricht der Start mit einer deutschen
+   Meldung ab; es wird keine andere Quelle ersatzweise aufgenommen.
+   **Audioquellen aktualisieren** liest die Liste neu ein, etwa nach dem
+   Anstecken eines USB-Interfaces.
+3. **Tastenkürzel** – **Aktiviert** schaltet das globale Kürzel ein oder aus;
+   darunter lässt sich **Alt zweimal**, **Strg zweimal** oder
+   **Umschalt zweimal** wählen. Änderungen gelten sofort und ohne Neustart.
+   Während einer Aufnahme ist das Untermenü gesperrt.
+4. **Koprotokoll öffnen** zeigt die Weboberfläche im Standardbrowser.
+5. **Beenden** entfernt das Symbol. Während einer Aufnahme ist der Eintrag
+   gesperrt und weist darauf hin, zuerst zu stoppen und zu sichern.
+
+**Die gewählte Taste zweimal kurz drücken und loslassen** startet die Aufnahme,
+dieselbe Taste zweimal stoppt und sichert sie. Im Symbol erscheint **●** mit der
+Aufnahmedauer (ab einer Stunde `H:MM:SS`), abwechselnd mit dem Status. Längeres
+Halten, Kombinationen mit anderen Tasten und ein zu großer Abstand lösen keine
+Aufnahme aus. Das Kürzel fragt nur den Tastenzustand ab, zeichnet keine Tasten
+auf und braucht keine Freigabe. Es gilt, solange das Symbol läuft; ein
+automatischer Start bei der Anmeldung wird nicht eingerichtet.
+
+Fehler zeigt Koprotokoll als Sprechblase am Symbol und als Statuszeile im Menü;
+nach dem nächsten erfolgreichen Schritt verschwindet die Meldung. Das Beenden
+des Symbols beendet den Server nicht – die Auswertung und die Oberfläche
+bleiben erreichbar. Das Symbol steuert die Aufnahme ausschließlich über
+`/api/capture*`; die Weboberfläche kann parallel starten und stoppen, der
+nächste Klick im Tray übernimmt den tatsächlichen Zustand des Servers.
+
 ## Geeigneten Eingang wählen
 
 1. Vor dem Gespräch alle Beteiligten über die Aufnahme informieren und die
