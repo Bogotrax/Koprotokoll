@@ -151,3 +151,67 @@ def test_system_helper_errors_end_startup_without_waiting_a_minute(tmp_path, mon
         recorder.start(capture.SYSTEM_AUDIO_DEVICE)
     assert commands[0][:2] == ["/test/Koprotokoll", "--capture-audio"]
     assert recorder.status() == {"active": False}
+
+
+def test_windows_geraete_zeigen_systemton_eintrag(tmp_path, monkeypatch):
+    import koprotokoll.capture as capture
+
+    monkeypatch.setattr(capture.sys, "platform", "win32")
+    monkeypatch.setattr(capture.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(
+        stdout='"Mikrofon (audio)"', stderr="", returncode=0))
+    geraete = capture.HardwareRecorder(tmp_path).devices()
+    assert geraete["devices"][0] == {"id": capture.SYSTEM_AUDIO_DEVICE,
+                                     "name": "Systemton + Standardmikrofon (Windows)"}
+
+
+def test_windows_start_ruft_python_helfer_mit_stoppzeilen_stdin(tmp_path, monkeypatch):
+    import koprotokoll.capture as capture
+
+    commands = []
+
+    def process(command, **kwargs):
+        commands.append((command, kwargs))
+        return SimpleNamespace(stdout=[], poll=lambda: 1, wait=lambda **_: 1,
+                                stdin=None, returncode=0)
+
+    monkeypatch.setattr(capture.sys, "platform", "win32")
+    monkeypatch.setattr(capture.subprocess, "Popen", process)
+    recorder = capture.HardwareRecorder(tmp_path)
+    with pytest.raises(RuntimeError, match="vor dem ersten Sample"):
+        recorder.start(capture.SYSTEM_AUDIO_DEVICE)
+    command, kwargs = commands[0]
+    assert command[0] == sys.executable
+    assert command[1].endswith("capture_windows.py")
+    assert command[2:] == ["--capture-audio", command[3], command[4]]
+    assert command[3].endswith(".system.wav") and command[4].endswith(".microphone.wav")
+    assert kwargs["stdin"] == subprocess.PIPE
+    assert recorder.status() == {"active": False}
+
+
+def test_windows_stop_schreibt_stoppzeile_und_schliesst_stdin(tmp_path, monkeypatch):
+    import koprotokoll.capture as capture
+
+    geschrieben = []
+
+    class FakeStdin:
+        def write(self, text):
+            geschrieben.append(text)
+
+        def flush(self):
+            pass
+
+        def close(self):
+            geschrieben.append("geschlossen")
+
+    process = SimpleNamespace(poll=lambda: None, wait=lambda **_: 0,
+                              stdin=FakeStdin(), returncode=0)
+    active = capture.ActiveCapture(
+        device=capture.SYSTEM_AUDIO_DEVICE, path=tmp_path / "aufnahme.wav", process=process,
+        channels=2, sample_rate=48_000, started_at=0.0,
+        system_path=tmp_path / "aufnahme.system.wav", mic_path=tmp_path / "aufnahme.microphone.wav")
+    recorder = capture.HardwareRecorder(tmp_path)
+    recorder._active = active
+    monkeypatch.setattr(capture.sys, "platform", "win32")
+    with pytest.raises(RuntimeError, match="keine Audiodatei"):
+        recorder.stop()
+    assert geschrieben == [b"stop\n", "geschlossen"]

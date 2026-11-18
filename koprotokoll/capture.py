@@ -38,6 +38,7 @@ def backend(platform: str | None = None) -> str:
 
 SYSTEM_AUDIO_DEVICE = "__koprotokoll_system_audio__"
 MACOS_CAPTURE_HELPER = Path(__file__).with_name("capture_macos.swift")
+WINDOWS_CAPTURE_HELPER = Path(__file__).with_name("capture_windows.py")
 
 
 def list_devices_command(platform: str | None = None) -> list[str]:
@@ -185,6 +186,9 @@ class HardwareRecorder:
             if major >= 15 and MACOS_CAPTURE_HELPER.exists() and shutil.which("swiftc"):
                 devices.insert(0, {"id": SYSTEM_AUDIO_DEVICE,
                                    "name": "Systemton + Standardmikrofon (macOS)"})
+        if sys.platform == "win32" and WINDOWS_CAPTURE_HELPER.exists():
+            devices.insert(0, {"id": SYSTEM_AUDIO_DEVICE,
+                               "name": "Systemton + Standardmikrofon (Windows)"})
         return {"backend": backend(), "devices": devices, "details": details}
 
     def status(self) -> dict:
@@ -205,13 +209,20 @@ class HardwareRecorder:
             system_path = self.capture_dir / f"{path.stem}.system.wav"
             mic_path = self.capture_dir / f"{path.stem}.microphone.wav"
             if is_system_mix:
-                if sys.platform != "darwin":
-                    raise ValueError("Systemtonaufnahme ist in dieser Version nur unter macOS verfügbar.")
-                command = [self._system_helper_executable(), "--capture-audio", str(system_path), str(mic_path)]
+                if sys.platform == "darwin":
+                    command = [self._system_helper_executable(), "--capture-audio",
+                               str(system_path), str(mic_path)]
+                elif sys.platform == "win32":
+                    command = [sys.executable, str(WINDOWS_CAPTURE_HELPER), "--capture-audio",
+                               str(system_path), str(mic_path)]
+                else:
+                    raise ValueError(
+                        "Systemtonaufnahme ist in dieser Version nur für macOS und Windows verfügbar.")
             else:
                 command = record_command(device, Path("-"), channels=channels, sample_rate=sample_rate)
+            stdin = subprocess.PIPE if is_system_mix and sys.platform == "win32" else subprocess.DEVNULL
             try:
-                process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                process = subprocess.Popen(command, stdin=stdin, stdout=subprocess.PIPE,
                                            stderr=subprocess.DEVNULL)
             except FileNotFoundError as exc:
                 raise RuntimeError("ffmpeg wurde nicht gefunden") from exc
@@ -299,7 +310,17 @@ class HardwareRecorder:
                 raise RuntimeError("Es läuft keine Hardwareaufnahme.")
             self._active = None
         if active.process.poll() is None:
-            active.process.send_signal(signal.SIGINT)
+            if active.system_path is not None and sys.platform == "win32":
+                # Der Windows-Helfer wird über eine Stoppzeile beendet; Signale erreichen ihn nicht.
+                try:
+                    if active.process.stdin is not None:
+                        active.process.stdin.write(b"stop\n")
+                        active.process.stdin.flush()
+                        active.process.stdin.close()
+                except (OSError, ValueError):
+                    pass
+            else:
+                active.process.send_signal(signal.SIGINT)
         try:
             active.process.wait(timeout=15)
         except subprocess.TimeoutExpired:

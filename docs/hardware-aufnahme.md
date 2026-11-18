@@ -93,8 +93,9 @@ Startprotokoll liegt unter `data/desktop/server.log`.
    und DirectShow unter Windows. Es wird dabei nichts aufgenommen oder an einen
    Dienst übertragen.
 3. In Koprotokoll **Aufnehmen → Audioeingang dieses Rechners** wählen und eine
-   Quelle auswählen. Unter macOS 15+ gibt es zusätzlich **Systemton +
-   Standardmikrofon**. Die laufende Pegelanzeige bestätigt Samples am Eingang;
+   Quelle auswählen. Unter macOS 15+ und unter Windows gibt es zusätzlich
+   **Systemton + Standardmikrofon**. Die laufende Pegelanzeige bestätigt Samples
+   am Eingang;
    sie allein bestätigt noch nicht, dass beide Gesprächsseiten enthalten sind.
    Für den eigenständigen Entwickler-/CLI-Test kann eine Quelle gezielt
    ausgewählt werden. Auf macOS ist das die Gerätenummer aus der Liste; unter
@@ -107,9 +108,10 @@ Startprotokoll liegt unter `data/desktop/server.log`.
 
    Die Originaldatei ist verlustfreies WAV (standardmäßig 48 kHz, Stereo) und
    wird wegen `ffmpeg -n` nie überschrieben. Sie bleibt vor der Konvertierung
-   erhalten. Bei der macOS-Systemtonaufnahme vergleicht Koprotokoll vor dem Start
-   der Pipeline die Dauer der beiden Spuren. Weichen sie um mehr als 0,5 Sekunden
-   ab, wird das Meeting nicht angelegt; die Spuren bleiben lokal für die Prüfung.
+   erhalten. Bei der Systemtonaufnahme (macOS und Windows) vergleicht
+   Koprotokoll vor dem Start der Pipeline die Dauer der beiden Spuren. Weichen
+   sie um mehr als 0,5 Sekunden ab, wird das Meeting nicht angelegt; die Spuren
+   bleiben lokal für die Prüfung.
 4. Sofort prüfen, ob sie wirklich beide Seiten enthält:
 
    ```bash
@@ -136,10 +138,17 @@ Signalquelle sichtbar sein: etwa über einen vom Betriebssystem oder
   kann in den macOS-Einstellungen weiterhin aufgeführt sein.
   Für diesen nativen Weg braucht der lokale Entwicklungsrechner `swiftc` aus den
   Apple-Entwicklerwerkzeugen; ohne Compiler wird die Option nicht angeboten.
-  Die App wählt keinen Treiber und ändert weder Standard-Ein- noch
-  Standard-Ausgabe. Auf Linux und Windows hängt Systemtonzugriff davon ab, ob
-  die Audioinfrastruktur einen Monitor-/Loopback-Eingang anbietet. Auf Geräten
-  ohne passenden Eingang bleibt der Import einer lokalen Aufnahmedatei verfügbar.
+  Unter Windows läuft derselbe Weg über WASAPI: Der Helfer
+  `koprotokoll/capture_windows.py` nimmt den Loopback des
+  Standardwiedergabegeräts und das Standardmikrofon als getrennte Spuren auf
+  (nur Python und `numpy`, keine Treiberinstallation, keine Freigabedialoge).
+  Beide Spuren werden auf den Moment beschnitten, in dem beide Geräte bereit
+  waren; ein Rückstau im Loopback und ein später öffnendes USB-Mikrofon
+  verschieben die Spuren dadurch nicht mehr gegeneinander. Die App wählt keinen
+  Treiber und ändert weder Standard-Ein- noch Standard-Ausgabe. Unter Linux
+  hängt Systemtonzugriff davon ab, ob die Audioinfrastruktur einen Monitor-/
+  Loopback-Eingang anbietet. Auf Geräten ohne passenden Eingang bleibt der
+  Import einer lokalen Aufnahmedatei verfügbar.
 
 ## In Koprotokoll importieren und prüfen
 
@@ -207,7 +216,7 @@ oder doppelte Stimmen müssen zusätzlich am Originalton geprüft werden.
 | Weg | Voraussetzung | Ausweichweg |
 | --- | --- | --- |
 | Direkter Hardwareeingang | Betriebssystem sieht Mikrofon/Interface/Loopback | WAV auf einem anderen Gerät aufnehmen und importieren |
-| Systemton | macOS 15+ mit Systemaudio- und Mikrofonfreigabe; andernorts Monitor-/Loopback-Eingang | Freigegebene lokale Aufnahmedatei importieren |
+| Systemton | macOS 15+ (Systemaudio- und Mikrofonfreigabe) oder Windows 10/11 (Standardgeräte, kein Dialog); Linux mit Monitor-/Loopback-Eingang | Freigegebene lokale Aufnahmedatei importieren |
 | Browseraufnahme | Sichere Seite, Browser-Berechtigung, passende Audiofreigabe | Hardware-WAV importieren |
 | Mobiles Gerät | Lokale Aufnahme-App oder geeigneter Eingang | Datei in das lokale Netz übertragen und importieren |
 
