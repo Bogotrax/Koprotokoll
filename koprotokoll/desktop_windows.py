@@ -11,13 +11,16 @@ Aufbau:
   Datei enthält keine Geheimnisse; die Rechte 0600 gelten auf POSIX, unter
   Windows schützt die Vererbung des Benutzerprofils.
 * ``ServerApi`` – ``urllib``-Zugriff auf ``/api/capture*`` mit deutschen
-  Fehlermeldungen.
+  Fehlermeldungen. Verlangt der Server einen Schlüssel
+  (``KOPROTOKOLL_REQUIRE_KEY=1``), liest der Tray ihn aus
+  ``KOPROTOKOLL_API_KEY`` oder ``data/desktop/api-schluessel.txt``.
 * ``Controller`` – Zustand und Abläufe ohne Betriebssystemaufrufe; damit
   ohne echten Tray und ohne Aufnahme prüfbar.
 * ``TrayApp`` – Symbol, Menü, Aufnahmedauer und Fehlermeldungen über
-  ``Shell_NotifyIconW``. Netz- und Dateizugriffe laufen im Hintergrund,
-  damit das Menü nicht einfriert; Win32-Fenster und Menü arbeiten nur im
-  Hauptthread.
+  ``Shell_NotifyIconW``. Netz- und länger dauernde Arbeit läuft im
+  Hintergrund, damit das Menü nicht einfriert; Win32-Fenster und Menü
+  arbeiten nur im Hauptthread, die wenige hundert Byte große
+  Einstellungsdatei schreibt er dort ebenfalls (unter einer Millisekunde).
 * ``ensure_server`` – startet bei Bedarf ``python -m koprotokoll serve``
   und wartet auf die Aufnahme-API.
 
@@ -32,6 +35,7 @@ import ctypes
 import json
 import logging
 import os
+import signal
 import subprocess
 import sys
 import threading
@@ -51,6 +55,8 @@ from .windows_hotkey import ShortcutModifier, ShortcutMonitor
 log = logging.getLogger(__name__)
 
 PREFS_NAME = "windows-einstellungen.json"
+API_KEY_ENV = "KOPROTOKOLL_API_KEY"       # Vorrang vor der Datei
+API_KEY_NAME = "api-schluessel.txt"       # in ``data/desktop``
 SERVER_TIMEOUT = 75.0  # Sekunden, bis der Server bzw. eine Aufnahme bereit ist
 
 # Anzeigenamen und gespeicherte Schlüssel der drei Doppeltipp-Tasten.
@@ -81,6 +87,29 @@ class Preferences:
 
 def preferences_path(settings: Settings) -> Path:
     return settings.data_dir / "desktop" / PREFS_NAME
+
+
+def api_key_path(settings: Settings) -> Path:
+    """Wo der Tray einen API-Schlüssel erwartet, wenn ``KOPROTOKOLL_REQUIRE_KEY=1`` gilt."""
+    return settings.data_dir / "desktop" / API_KEY_NAME
+
+
+def load_api_key(settings: Settings, environ: dict | None = None) -> str | None:
+    """Den API-Schlüssel des Trays lesen: Umgebungsvariable zuerst, dann die Datei.
+
+    Die Umgebungsvariable hat Vorrang, damit ein Test oder ein Aufruf aus einer
+    anderen Anwendung den Schlüssel mitgeben kann. Fehlt beides, bleibt es bei
+    ``None``; der Server antwortet dann – falls die Pflicht gilt – mit 401, und
+    die Meldung erklärt den Weg zum Schlüssel.
+    """
+    source = (os.environ if environ is None else environ).get(API_KEY_ENV)
+    if isinstance(source, str) and source.strip():
+        return source.strip()
+    try:
+        saved = api_key_path(settings).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return saved or None
 
 
 def load_preferences(settings: Settings) -> Preferences:
@@ -139,6 +168,12 @@ def recording_url(base_url: str, meeting_id: str) -> str:
 
 def _http_detail(exc: urllib.error.HTTPError) -> str:
     """Die deutsche ``detail``-Meldung der API aus einer HTTP-Antwort lesen."""
+    if exc.code == 401:
+        # Der Server sagt nur „Schlüssel erforderlich“; hier steht, woher der Tray ihn nimmt.
+        return ("Der Server verlangt einen API-Schlüssel (KOPROTOKOLL_REQUIRE_KEY=1). "
+                "Einmalig „python -m koprotokoll create-key tray“ ausführen und den "
+                f"Schlüssel als {API_KEY_ENV} bereitstellen oder in "
+                f"data/desktop/{API_KEY_NAME} ablegen.")
     try:
         payload = json.loads(exc.read() or b"null")
     except (OSError, ValueError):
@@ -152,15 +187,18 @@ def _http_detail(exc: urllib.error.HTTPError) -> str:
 
 
 class ServerApi:
-    """Die lokale Aufnahme-API über ``urllib``; ohne API-Schlüssel, nur 127.0.0.1."""
+    """Die lokale Aufnahme-API über ``urllib``; optional mit ``Bearer``-Schlüssel."""
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, api_key: str | None = None) -> None:
         self.base_url = base_url.rstrip("/")
+        self.api_key = (api_key or "").strip() or None
 
     def _request(self, method: str, path: str, body: dict | None = None,
                  timeout: float = 10.0) -> object:
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"} if data is not None else {}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
         request = urllib.request.Request(self.base_url + path, data=data, headers=headers,
                                          method=method)
         try:
@@ -204,6 +242,7 @@ class Controller:
                  save: Callable[[Preferences], None],
                  open_url: Callable[[str], object] = webbrowser.open,
                  clock: Callable[[], float] = time.time,
+                 monotonic: Callable[[], float] = time.monotonic,
                  monitor: ShortcutMonitor | None = None) -> None:
         self.api = api
         self.preferences = preferences
@@ -214,9 +253,10 @@ class Controller:
         self.status_text = "bereit"
         self._save = save
         self._open_url = open_url
-        self._clock = clock
+        self._clock = clock      # Wanduhr: nur zum Vergleich mit ``started_at`` des Servers
+        self._mono = monotonic   # Dauer misst ohne Sprünge durch Zeitabgleich
         self._monitor = monitor
-        self._started_at: float | None = None
+        self._started_at: float | None = None  # Startzeit auf der monotonen Uhr
 
     @property
     def base_url(self) -> str:
@@ -248,9 +288,10 @@ class Controller:
         return "bereit"
 
     def elapsed(self) -> float:
+        """Laufende Dauer in Sekunden, gemessen auf der monotonen Uhr."""
         if self._started_at is None:
             return 0.0
-        return max(0.0, self._clock() - self._started_at)
+        return max(0.0, self._mono() - self._started_at)
 
     def fail(self, message: str) -> None:
         """Einen Fehler für Menü und Meldung merken."""
@@ -267,10 +308,14 @@ class Controller:
         self.error = None  # der Server antwortet; ältere Meldungen verfallen
         if bool(state.get("active")):
             started = state.get("started_at")
-            self._started_at = (float(started) if isinstance(started, (int, float))
-                                else self._clock())
+            if isinstance(started, (int, float)):
+                # Der Server nennt den Start in Wanduhrzeit; einmal in die monotone Uhr
+                # umrechnen, damit ein späterer Zeitabgleich die Dauer nicht springen lässt.
+                age = max(0.0, self._clock() - float(started))
+                self._started_at = self._mono() - age
+            else:
+                self._started_at = self._mono()
             self.active = True
-            self.error = None
         else:
             self.active = False
             self._started_at = None
@@ -300,7 +345,7 @@ class Controller:
         try:
             self.api.start(self.device_id())
             self.active = True
-            self._started_at = self._clock()
+            self._started_at = self._mono()
             self.status_text = "bereit"
         except DesktopError as exc:
             self.fail(str(exc))
@@ -518,6 +563,7 @@ def _declare(user32, shell32, kernel32) -> None:
     user32.LoadIconW.argtypes = [wintypes.HINSTANCE, ctypes.c_void_p]
     user32.LoadIconW.restype = wintypes.HICON
     user32.UnregisterClassW.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
+    user32.UnregisterClassW.restype = wintypes.BOOL
     shell32.Shell_NotifyIconW.argtypes = [wintypes.DWORD, ctypes.POINTER(NOTIFYICONDATAW)]
     shell32.Shell_NotifyIconW.restype = wintypes.BOOL
     kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
@@ -538,8 +584,10 @@ class TrayApp:
     """Symbol im Infobereich mit Menü, Aufnahmedauer und Meldungen.
 
     Win32-Fenster, Menü und Symbol werden ausschließlich im Hauptthread
-    bedient. Netz- und Dateizugriffe laufen in einem Hintergrund-Thread; nach
-    dem Abschluss weckt er den Hauptthread über ``WM_ACTION_DONE``.
+    bedient. Netz- und länger dauernde Arbeit läuft in einem
+    Hintergrund-Thread; nach dem Abschluss weckt er den Hauptthread über
+    ``WM_ACTION_DONE``. Die wenige hundert Byte große Einstellungsdatei
+    schreibt der Hauptthread selbst, das dauert unter einer Millisekunde.
     """
 
     CLASS_NAME = "KoprotokollTrayWindow"
@@ -607,6 +655,8 @@ class TrayApp:
             0, self.CLASS_NAME, "Koprotokoll", 0, 0, 0, 0, 0,
             None, None, self._instance, None)
         if not self._hwnd:
+            # Ohne Fenster bleibt die registrierte Klasse sonst bis zum Prozessende stehen.
+            self._user32.UnregisterClassW(self.CLASS_NAME, self._instance)
             raise DesktopError("Das Fenster für den Infobereich ließ sich nicht anlegen "
                                f"(Fehler {ctypes.get_last_error()}).")
 
@@ -736,12 +786,14 @@ class TrayApp:
         return menu
 
     def _handle_command(self, command: int) -> None:
+        # Einstellungen schreiben wenige hundert Byte; das erledigt der Hauptthread.
         if command == MENU_TOGGLE:
             self._run_action(self._toggle)
         elif command == MENU_OPEN:
             webbrowser.open(self.base_url + "/")
         elif command == MENU_REFRESH:
-            self._run_action(self._refresh)
+            # Der erste Aufruf kann den Server starten und dauert; daher mit Zwischenstatus.
+            self._run_action(self._refresh, status="Audioquellen werden geladen …")
         elif command == MENU_SHORTCUT:
             try:
                 self.controller.configure_shortcut(
@@ -761,15 +813,26 @@ class TrayApp:
         self._update_tooltip()
 
     def _quit(self) -> None:
-        """Symbol entfernen und die Nachrichtenschleife beenden."""
-        if self.controller.locked:
+        """Symbol entfernen, Fensterklasse abmelden und die Nachrichtenschleife beenden."""
+        if self.controller.active:
             self._notify("Bitte zuerst die Aufnahme stoppen und sichern.", warning=True)
+            return
+        if self.controller.locked:
+            # Start oder Stopp läuft gerade und sichert bzw. startet noch.
+            self._notify("Bitte warten, bis die laufende Aktion beendet ist.", warning=True)
             return
         if self.monitor is not None:
             self.monitor.stop()
         self._user32.KillTimer(self._hwnd, TIMER_ID)
         self._remove_icon()
         self._user32.DestroyWindow(self._hwnd)
+        self._hwnd = 0
+        # Die Fensterklasse für den ganzen Prozess abmelden, nicht nur das Fenster.
+        self._user32.UnregisterClassW(self.CLASS_NAME, self._instance)
+
+    def request_quit(self) -> None:
+        """Beenden anfordern, auch aus einem Signalhandler heraus (threadsicher)."""
+        self._post(WM_CLOSE)
 
     # --- Nachrichten --------------------------------------------------------
 
@@ -836,6 +899,9 @@ class TrayApp:
     def _run_action(self, action: Callable[[], object], status: str | None = None) -> None:
         """Netz- oder Dateizugriff im Hintergrund; das Menü bleibt bedienbar."""
         if self._worker is not None:
+            # Ein Doppeltipp oder Menüklick kam während einer laufenden Aktion:
+            # nicht still verwerfen, sonst wirkt der Tray taub.
+            self._notify("Eine Aktion läuft noch – bitte kurz warten.")
             return
         if status:
             self.controller.waiting = True
@@ -924,31 +990,46 @@ _MUTEX = None
 
 
 def single_instance_free() -> bool:
-    """Nur ein Tray je Anmeldung; der Mutex bleibt bis zum Prozessende gehalten."""
+    """Nur ein Tray je Anmeldung; der Mutex bleibt bis zum Prozessende gehalten.
+
+    Schlägt ``CreateMutexW`` fehl, lässt sich nicht sagen, ob schon ein Tray
+    läuft; dann wird der Start mit einer Meldung abgebrochen, statt ein
+    zweites Symbol zu erlauben.
+    """
     global _MUTEX
     _require_windows("Der Infobereich")
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
     kernel32.CreateMutexW.restype = wintypes.HANDLE
-    _MUTEX = kernel32.CreateMutexW(None, False, "Local\\KoprotokollTray")
-    return ctypes.get_last_error() != 183  # ERROR_ALREADY_EXISTS
+    handle = kernel32.CreateMutexW(None, False, "Local\\KoprotokollTray")
+    error = ctypes.get_last_error()  # vor allen weiteren Aufrufen lesen
+    if not handle:
+        raise DesktopError("Es ließ sich nicht prüfen, ob der Infobereich bereits läuft "
+                           f"(Fehler {error}).")
+    _MUTEX = handle
+    return error != 183  # ERROR_ALREADY_EXISTS
 
 
 def main(port: int = 8000) -> None:
-    """Infobereich starten; der Aufruf kehrt erst mit „Beenden“ zurück."""
+    """Infobereich starten; der Aufruf kehrt mit „Beenden“ oder Strg+C zurück."""
     if sys.platform != "win32":
         raise SystemExit("Der Infobereich ist in dieser Version nur für Windows verfügbar. "
                          "Unter macOS startet „python -m koprotokoll desktop“ die Menüleiste.")
-    if not single_instance_free():
-        raise SystemExit("Koprotokoll läuft bereits im Infobereich.")
     settings = Settings()
     settings.ensure_dirs()
     base_url = f"http://127.0.0.1:{port}"
     controller = Controller(
-        ServerApi(base_url), load_preferences(settings),
+        ServerApi(base_url, api_key=load_api_key(settings)), load_preferences(settings),
         save=lambda values: save_preferences(settings, values),
     )
+    tray = TrayApp(controller, port=port, settings=settings, base_url=base_url)
     try:
-        TrayApp(controller, port=port, settings=settings, base_url=base_url).run()
+        if not single_instance_free():
+            raise SystemExit("Koprotokoll läuft bereits im Infobereich.")
+        # Strg+C wirkt wie „Beenden“. Der Signalhandler läuft im Hauptthread, der
+        # hier in GetMessageW wartet; der Sekundentakt weckt ihn spätestens nach
+        # einer Sekunde.
+        signal.signal(signal.SIGINT, lambda *_: tray.request_quit())
+        tray.run()
     except DesktopError as exc:
         raise SystemExit(str(exc)) from exc

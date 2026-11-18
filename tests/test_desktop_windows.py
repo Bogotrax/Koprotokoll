@@ -19,8 +19,10 @@ from koprotokoll.desktop_windows import (
     DesktopError,
     Preferences,
     ServerApi,
+    api_key_path,
     ensure_server,
     format_duration,
+    load_api_key,
     load_preferences,
     menu_text,
     preferences_path,
@@ -64,14 +66,16 @@ class FakeMonitor:
         self.calls.append((enabled, modifier))
 
 
-def make_controller(api=None, prefs=None, clock=None, monitor=None, opened=None):
+def make_controller(api=None, prefs=None, clock=None, monotonic=None, monitor=None,
+                    opened=None):
     saved = []
     api = api or FakeApi()
     preferences = prefs or Preferences(audio_source_name="Mikrofon")
     controller = Controller(
         api, preferences, save=saved.append,
         open_url=(opened if opened is not None else []).append,
-        clock=clock or (lambda: 100.0), monitor=monitor,
+        clock=clock or (lambda: 100.0), monotonic=monotonic or (lambda: 100.0),
+        monitor=monitor,
     )
     return controller, api, saved
 
@@ -172,14 +176,17 @@ def test_stopp_sichert_und_oeffnet_das_meeting():
 
 
 def test_dauer_kommt_von_der_uhr():
-    times = [100.0]
-    controller, _, _ = make_controller(clock=lambda: times[0])
+    wall = [100.0]
+    mono = [500.0]
+    controller, _, _ = make_controller(clock=lambda: wall[0],
+                                       monotonic=lambda: mono[0])
     controller.start()
-    times[0] = 161.5
+    wall[0] = 161.5
+    mono[0] = 561.5
     assert controller.elapsed() == pytest.approx(61.5)
     assert controller.status_line() == "● 01:01"
-    times[0] = 3700.0
-    assert controller.status_line() == "● 1:00:00"
+    mono[0] = 500.0 + 3700.0
+    assert controller.status_line() == "● 1:01:40"
 
 
 def test_toggle_startet_und_stoppt():
@@ -223,6 +230,19 @@ def test_sync_uebernimmt_eine_laufende_aufnahme():
     api._status = {"active": False}
     controller.sync()
     assert controller.active is False
+
+
+def test_dauer_springt_nicht_bei_einem_zeitabgleich():
+    wall = [100.0]
+    mono = [500.0]
+    api = FakeApi(status={"active": True, "started_at": 100.0})
+    controller, _, _ = make_controller(api=api, clock=lambda: wall[0],
+                                       monotonic=lambda: mono[0])
+    controller.sync()
+    assert controller.elapsed() == pytest.approx(0.0)
+    mono[0] += 5.0
+    wall[0] += 3600.0  # NTP oder Sommerzeit stellt die Wanduhr vor
+    assert controller.elapsed() == pytest.approx(5.0)
 
 
 def test_erfolgreicher_abgleich_loescht_die_fehlermeldung():
@@ -313,6 +333,102 @@ def test_takt_pausiert_waehrend_ladens_und_aktionen(tmp_path):
     assert actions == []  # der Hintergrund-Thread ist belegt
 
 
+# --- Menü, Meldungen und Beenden ----------------------------------------------
+
+
+class FakeUser32:
+    """Zeichnet die Win32-Aufrufe des Hauptthreads auf, ohne echte Fenster."""
+
+    def __init__(self):
+        self.messages = []
+        self.destroyed = []
+        self.timers = []
+        self.unregistered = []
+
+    def PostMessageW(self, hwnd, message, wparam, lparam):
+        self.messages.append((hwnd, message))
+        return 1
+
+    def KillTimer(self, hwnd, timer):
+        self.timers.append(timer)
+
+    def DestroyWindow(self, hwnd):
+        self.destroyed.append(hwnd)
+        return 1
+
+    def UnregisterClassW(self, name, instance):
+        self.unregistered.append((name, instance))
+        return 1
+
+
+def make_tray_with_win32(controller, tmp_path):
+    """TrayApp mit aufgezeichneten Win32-Aufrufen und gesammelten Sprechblasen."""
+    app = desktop_windows.TrayApp(controller, port=8000,
+                                  settings=Settings(data_dir=tmp_path))
+    win32 = FakeUser32()
+    app._user32 = win32
+    app._instance = 42
+    hints = []
+    app._notify = lambda message, warning=False: hints.append((message, warning))
+    return app, win32, hints
+
+
+def test_belegter_hintergrund_verwirft_den_wunsch_nicht_still(tmp_path):
+    controller, _, _ = make_controller()
+    app, _, hints = make_tray_with_win32(controller, tmp_path)
+    worker = object()
+    app._worker = worker
+    app._run_action(lambda: None)
+    assert app._worker is worker  # kein zweiter Thread
+    assert hints and "läuft noch" in hints[0][0]
+
+
+def test_aktualisieren_zeigt_einen_zwischenschritt(tmp_path):
+    controller, _, _ = make_controller()
+    app, _, _ = make_tray_with_win32(controller, tmp_path)
+    calls = []
+    app._run_action = lambda action, status=None: calls.append((action, status))
+    app._handle_command(desktop_windows.MENU_REFRESH)
+    assert calls == [(app._refresh, "Audioquellen werden geladen …")]
+
+
+def test_beenden_wartet_auf_die_aufnahme(tmp_path):
+    controller, _, _ = make_controller()
+    app, win32, hints = make_tray_with_win32(controller, tmp_path)
+    controller.start()
+    app._quit()
+    assert win32.destroyed == []
+    assert hints[0][0].startswith("Bitte zuerst die Aufnahme stoppen")
+
+
+def test_beenden_wartet_auf_eine_laufende_aktion(tmp_path):
+    controller, _, _ = make_controller()
+    app, win32, hints = make_tray_with_win32(controller, tmp_path)
+    controller.busy = True
+    app._quit()
+    assert win32.destroyed == []
+    assert "warten" in hints[0][0]
+
+
+def test_beenden_meldet_symbol_und_fensterklasse_ab(tmp_path):
+    controller, _, _ = make_controller()
+    app, win32, _ = make_tray_with_win32(controller, tmp_path)
+    app._hwnd = 7
+    app._quit()
+    assert win32.destroyed == [7]
+    assert win32.timers == [desktop_windows.TIMER_ID]
+    assert win32.unregistered == [(desktop_windows.TrayApp.CLASS_NAME, 42)]
+    assert app._hwnd == 0
+
+
+def test_strg_c_fordert_das_beenden_an(tmp_path):
+    controller, _, _ = make_controller()
+    app, win32, _ = make_tray_with_win32(controller, tmp_path)
+    app._hwnd = 7
+    app.request_quit()
+    assert win32.messages == [(7, desktop_windows.WM_CLOSE)]
+
+
 # --- Serverstart -------------------------------------------------------------
 
 
@@ -398,6 +514,58 @@ def test_api_fehler_ohne_detail_nennt_den_status(monkeypatch):
         ServerApi("http://127.0.0.1:8000").status()
 
 
+class FakeResponse:
+    """Minimalantwort für ``urllib.request.urlopen`` im Kontextmanager."""
+
+    def __init__(self, payload=b"{}"):
+        self.payload = payload
+
+    def read(self):
+        return self.payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+def test_schluessel_wird_als_bearer_gesendet(monkeypatch):
+    seen = []
+
+    def capture(request, timeout=None):
+        seen.append(request)
+        return FakeResponse()
+
+    monkeypatch.setattr(desktop_windows.urllib.request, "urlopen", capture)
+    ServerApi("http://127.0.0.1:8000", api_key=" kp_test ").status()
+    assert seen[0].get_header("Authorization") == "Bearer kp_test"
+    seen.clear()
+    ServerApi("http://127.0.0.1:8000").status()
+    assert seen[0].get_header("Authorization") is None
+
+
+def test_schluessel_kommt_aus_umgebung_oder_datei(tmp_path):
+    settings = Settings(data_dir=tmp_path)
+    assert load_api_key(settings, {}) is None
+    path = api_key_path(settings)
+    path.parent.mkdir(parents=True)
+    path.write_text("  kp_aus_datei\n", encoding="utf-8")
+    assert load_api_key(settings, {}) == "kp_aus_datei"
+    assert load_api_key(settings, {"KOPROTOKOLL_API_KEY": " kp_aus_env "}) == "kp_aus_env"
+    assert load_api_key(settings, {"KOPROTOKOLL_API_KEY": "   "}) == "kp_aus_datei"
+
+
+def test_fehlender_schluessel_wird_erklaert(monkeypatch):
+    def fail(request, timeout=None):
+        raise urllib.error.HTTPError("http://127.0.0.1:8000/api/capture", 401,
+                                     "Unauthorized", {}, io.BytesIO(b'{"detail": "x"}'))
+
+    monkeypatch.setattr(desktop_windows.urllib.request, "urlopen", fail)
+    with pytest.raises(DesktopError, match="create-key"):
+        ServerApi("http://127.0.0.1:8000").status()
+
+
 def test_nicht_erreichbarer_server_wird_erklaert(monkeypatch):
     def fail(request, timeout=None):
         raise urllib.error.URLError("Verbindung abgelehnt")
@@ -416,6 +584,45 @@ def test_tray_lehnt_andere_betriebssysteme_ab(tmp_path, monkeypatch):
     app = desktop_windows.TrayApp(controller, port=8000, settings=Settings(data_dir=tmp_path))
     with pytest.raises(DesktopError, match="nur für Windows"):
         app.run()
+
+
+class FakeMutexFunction:
+    def __init__(self, handle):
+        self.argtypes = None
+        self.restype = None
+        self._handle = handle
+
+    def __call__(self, *args):
+        return self._handle
+
+
+class FakeKernel32:
+    def __init__(self, handle):
+        self.CreateMutexW = FakeMutexFunction(handle)
+
+
+def patch_mutex(monkeypatch, handle, error):
+    """``CreateMutexW`` und den gepufferten Fehler nachstellen (ohne echtes Win32)."""
+    monkeypatch.setattr(desktop_windows, "_require_windows", lambda action: None)
+    monkeypatch.setattr(desktop_windows.ctypes, "WinDLL",
+                        lambda *args, **kwargs: FakeKernel32(handle), raising=False)
+    monkeypatch.setattr(desktop_windows.ctypes, "get_last_error", lambda: error)
+
+
+def test_freier_mutex_erlaubt_den_start(monkeypatch):
+    patch_mutex(monkeypatch, handle=1, error=0)
+    assert desktop_windows.single_instance_free() is True
+
+
+def test_zweiter_tray_wird_erkannt(monkeypatch):
+    patch_mutex(monkeypatch, handle=1, error=183)
+    assert desktop_windows.single_instance_free() is False
+
+
+def test_fehlender_mutex_wird_gemeldet(monkeypatch):
+    patch_mutex(monkeypatch, handle=0, error=5)
+    with pytest.raises(DesktopError, match="Fehler 5"):
+        desktop_windows.single_instance_free()
 
 
 def test_hilfsfunktionen():

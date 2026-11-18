@@ -104,14 +104,16 @@ Ein Klick mit der linken oder rechten Maustaste öffnet das Menü:
    vorhanden oder nicht eindeutig, bricht der Start mit einer deutschen
    Meldung ab; es wird keine andere Quelle ersatzweise aufgenommen.
    **Audioquellen aktualisieren** liest die Liste neu ein, etwa nach dem
-   Anstecken eines USB-Interfaces.
+   Anstecken eines USB-Interfaces; solange das dauert, steht im Symbol
+   **Audioquellen werden geladen …**.
 3. **Tastenkürzel** – **Aktiviert** schaltet das globale Kürzel ein oder aus;
    darunter lässt sich **Alt zweimal**, **Strg zweimal** oder
    **Umschalt zweimal** wählen. Änderungen gelten sofort und ohne Neustart.
    Während einer Aufnahme ist das Untermenü gesperrt.
 4. **Koprotokoll öffnen** zeigt die Weboberfläche im Standardbrowser.
-5. **Beenden** entfernt das Symbol. Während einer Aufnahme ist der Eintrag
-   gesperrt und weist darauf hin, zuerst zu stoppen und zu sichern.
+5. **Beenden** entfernt das Symbol; **Strg+C** in der Konsole wirkt genauso.
+   Während einer Aufnahme weist eine Sprechblase darauf hin, zuerst zu stoppen
+   und zu sichern; läuft gerade ein Start oder Stopp, bittet sie zu warten.
 
 **Die gewählte Taste zweimal kurz drücken und loslassen** startet die Aufnahme,
 dieselbe Taste zweimal stoppt und sichert sie. Im Symbol erscheint **●** mit der
@@ -128,7 +130,21 @@ bleiben erreichbar. Das Symbol steuert die Aufnahme ausschließlich über
 `/api/capture*`; die Weboberfläche kann parallel starten und stoppen. Das
 Symbol fragt den Zustand etwa alle zehn Sekunden im Hintergrund ab, Menü und
 Dauer folgen also auch einer dort gestarteten Aufnahme; ein Klick im Tray
-übernimmt den tatsächlichen Zustand des Servers.
+übernimmt den tatsächlichen Zustand des Servers. Die Dauer misst die monotone
+Uhr und springt deshalb nicht, wenn Windows die Systemzeit abgleicht.
+
+Verlangt der Server einen API-Schlüssel (`KOPROTOKOLL_REQUIRE_KEY=1`), braucht
+ihn auch das Symbol. Einmalig
+
+```powershell
+python -m koprotokoll create-key tray
+```
+
+ausführen und den angezeigten Schlüssel als Umgebungsvariable
+`KOPROTOKOLL_API_KEY` setzen oder in `data/desktop/api-schluessel.txt` ablegen;
+die Umgebungsvariable hat Vorrang. Fehlt der Schlüssel, nennt die Sprechblase
+diesen Weg. Die Datei enthält nur diesen Schlüssel und ist wie die
+Einstellungen für den eigenen Benutzer vorgesehen.
 
 ## Geeigneten Eingang wählen
 
