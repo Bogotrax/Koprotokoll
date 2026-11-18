@@ -7,8 +7,9 @@ lokale Server-API: kein zweiter Aufnahmeweg, keine zusätzlichen Pakete.
 Aufbau:
 
 * ``Preferences`` – Audioquelle (Name), Kürzel an/aus und Doppeltipp-Taste
-  in ``data/desktop/windows-einstellungen.json``, atomar und nur für den
-  eigenen Benutzer lesbar gespeichert.
+  in ``data/desktop/windows-einstellungen.json``, atomar gespeichert. Die
+  Datei enthält keine Geheimnisse; die Rechte 0600 gelten auf POSIX, unter
+  Windows schützt die Vererbung des Benutzerprofils.
 * ``ServerApi`` – ``urllib``-Zugriff auf ``/api/capture*`` mit deutschen
   Fehlermeldungen.
 * ``Controller`` – Zustand und Abläufe ohne Betriebssystemaufrufe; damit
@@ -102,7 +103,12 @@ def load_preferences(settings: Settings) -> Preferences:
 
 
 def save_preferences(settings: Settings, preferences: Preferences) -> None:
-    """Einstellungen atomar schreiben; die Datei ist nur für den Benutzer lesbar."""
+    """Einstellungen atomar schreiben.
+
+    Die Rechte 0600 gelten auf POSIX; unter Windows richten ACLs die Rechte
+    ein, dort schützt die Vererbung des Benutzerprofils. Geheimnisse stehen
+    nicht in der Datei.
+    """
     settings.ensure_dirs()
     path = preferences_path(settings)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,7 +117,7 @@ def save_preferences(settings: Settings, preferences: Preferences) -> None:
         "shortcut_enabled": preferences.shortcut_enabled,
         "double_tap_key": preferences.double_tap_key,
     }
-    temporary = path.with_suffix(".tmp")
+    temporary = path.with_name(path.name + ".tmp")
     temporary.touch(mode=0o600, exist_ok=True)
     temporary.chmod(0o600)
     temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -258,6 +264,7 @@ class Controller:
     def sync(self) -> None:
         """Den Zustand des Servers übernehmen; die Aufnahme kann in der Oberfläche laufen."""
         state = self.api.status()
+        self.error = None  # der Server antwortet; ältere Meldungen verfallen
         if bool(state.get("active")):
             started = state.get("started_at")
             self._started_at = (float(started) if isinstance(started, (int, float))
@@ -409,7 +416,6 @@ WM_DESTROY = 0x0002
 WM_CLOSE = 0x0010
 WM_TIMER = 0x0113
 WM_LBUTTONUP = 0x0202
-WM_LBUTTONDBLCLK = 0x0203
 WM_RBUTTONUP = 0x0205
 WM_APP = 0x8000
 WM_TRAY = WM_APP + 1        # Mausklick auf das Symbol
@@ -537,9 +543,11 @@ class TrayApp:
     """
 
     CLASS_NAME = "KoprotokollTrayWindow"
+    HEARTBEAT = 10.0  # Sekunden zwischen zwei Zustandsabfragen beim Server
 
     def __init__(self, controller: Controller, *, port: int, settings: Settings,
-                 base_url: str | None = None) -> None:
+                 base_url: str | None = None,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self.controller = controller
         self.port = port
         self.settings = settings
@@ -548,6 +556,8 @@ class TrayApp:
         self.devices_loaded = False
         self.monitor: ShortcutMonitor | None = None
         self._worker: threading.Thread | None = None
+        self._clock = clock
+        self._next_sync = 0.0
         self._server_lock = threading.Lock()
         self._tooltip = ""
         self._shown_error: str | None = None
@@ -765,7 +775,9 @@ class TrayApp:
 
     def _on_message(self, hwnd, message, wparam, lparam):
         if message == WM_TRAY:
-            if int(lparam) & 0xFFFF in (WM_LBUTTONUP, WM_RBUTTONUP, WM_LBUTTONDBLCLK):
+            # Nur einfache Klicks: die Fensterklasse hat kein CS_DBLCLKS, daher
+            # kommen keine Doppelklick-Nachrichten an.
+            if int(lparam) & 0xFFFF in (WM_LBUTTONUP, WM_RBUTTONUP):
                 self._show_menu()
             return 0
         if message == WM_SHORTCUT:
@@ -777,6 +789,7 @@ class TrayApp:
             self._update_tooltip()
             return 0
         if message == WM_TIMER and int(wparam) == TIMER_ID:
+            self._tick()
             self._update_tooltip()
             return 0
         if message == WM_CLOSE:
@@ -803,6 +816,20 @@ class TrayApp:
         """Aus einem Hintergrund-Thread in den Hauptthread wechseln."""
         if self._hwnd and self._user32 is not None:
             self._user32.PostMessageW(self._hwnd, message, 0, 0)
+
+    def _tick(self) -> None:
+        """Sekundentakt: den Zustand des Servers regelmäßig nachziehen.
+
+        So übernimmt das Menü auch eine in der Oberfläche gestartete Aufnahme
+        samt Dauer. Läuft der Startvorgang oder gerade eine Aktion, fällt
+        dieser Takt aus, damit sich die Zugriffe nicht überschneiden.
+        """
+        now = self._clock()
+        if now < self._next_sync:
+            return
+        self._next_sync = now + self.HEARTBEAT
+        if self._worker is None and not self.controller.busy and not self.controller.waiting:
+            self._run_action(self.controller.sync)
 
     # --- Abläufe ------------------------------------------------------------
 

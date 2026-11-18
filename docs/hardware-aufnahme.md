@@ -125,8 +125,10 @@ Fehler zeigt Koprotokoll als Sprechblase am Symbol und als Statuszeile im Menü;
 nach dem nächsten erfolgreichen Schritt verschwindet die Meldung. Das Beenden
 des Symbols beendet den Server nicht – die Auswertung und die Oberfläche
 bleiben erreichbar. Das Symbol steuert die Aufnahme ausschließlich über
-`/api/capture*`; die Weboberfläche kann parallel starten und stoppen, der
-nächste Klick im Tray übernimmt den tatsächlichen Zustand des Servers.
+`/api/capture*`; die Weboberfläche kann parallel starten und stoppen. Das
+Symbol fragt den Zustand etwa alle zehn Sekunden im Hintergrund ab, Menü und
+Dauer folgen also auch einer dort gestarteten Aufnahme; ein Klick im Tray
+übernimmt den tatsächlichen Zustand des Servers.
 
 ## Geeigneten Eingang wählen
 

@@ -112,7 +112,7 @@ def test_speichern_ist_atomar_und_wird_wieder_gelesen(tmp_path):
     save_preferences(settings, prefs)
     saved = preferences_path(settings)
     assert saved.exists()
-    assert not saved.with_suffix(".tmp").exists()
+    assert not saved.with_name(saved.name + ".tmp").exists()
     assert "Büro" in saved.read_text(encoding="utf-8")
     assert load_preferences(settings) == prefs
 
@@ -225,6 +225,13 @@ def test_sync_uebernimmt_eine_laufende_aufnahme():
     assert controller.active is False
 
 
+def test_erfolgreicher_abgleich_loescht_die_fehlermeldung():
+    controller, _, _ = make_controller()
+    controller.fail("Der lokale Server ist nicht erreichbar.")
+    controller.sync()
+    assert controller.error is None
+
+
 def test_fehler_wird_im_status_gefuehrt_und_beim_start_geloescht():
     controller, _, _ = make_controller()
     controller.fail("Der lokale Server ist nicht erreichbar.")
@@ -253,6 +260,57 @@ def test_fehlgeschlagener_stopp_bleibt_laufen_und_meldet_deutsch():
         controller.stop()
     assert controller.active is True
     assert controller.status_line().startswith("Fehler:")
+
+
+# --- Takt des Infobereichs ----------------------------------------------------
+
+
+def make_tray(controller, tmp_path, ticks):
+    """TrayApp ohne Win32; der Takt wird über eine steuerbare Uhr geprüft."""
+    app = desktop_windows.TrayApp(controller, port=8000,
+                                  settings=Settings(data_dir=tmp_path),
+                                  clock=lambda: ticks[0])
+    actions = []
+
+    def run_action(action, status=None):
+        actions.append(action)
+
+    app._run_action = run_action
+    return app, actions
+
+
+def test_takt_zieht_den_serverzustand_nach(tmp_path):
+    controller, _, _ = make_controller()
+    ticks = [0.0]
+    app, actions = make_tray(controller, tmp_path, ticks)
+
+    app._tick()
+    assert actions == [controller.sync]
+    app._tick()
+    assert len(actions) == 1  # vor Ablauf des Takts kein zweiter Zugriff
+    ticks[0] = desktop_windows.TrayApp.HEARTBEAT
+    app._tick()
+    assert len(actions) == 2
+
+
+def test_takt_pausiert_waehrend_ladens_und_aktionen(tmp_path):
+    controller, _, _ = make_controller()
+    ticks = [0.0]
+    app, actions = make_tray(controller, tmp_path, ticks)
+
+    controller.waiting = True
+    app._tick()
+    assert actions == []  # der Startvorgang lädt bereits
+    controller.waiting = False
+    controller.busy = True
+    ticks[0] = desktop_windows.TrayApp.HEARTBEAT
+    app._tick()
+    assert actions == []  # eine Aktion läuft
+    controller.busy = False
+    app._worker = object()
+    ticks[0] = 2 * desktop_windows.TrayApp.HEARTBEAT
+    app._tick()
+    assert actions == []  # der Hintergrund-Thread ist belegt
 
 
 # --- Serverstart -------------------------------------------------------------
