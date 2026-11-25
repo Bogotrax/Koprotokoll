@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import shutil
+import signal
 import subprocess
 import sys
 import wave
@@ -215,3 +216,70 @@ def test_windows_stop_schreibt_stoppzeile_und_schliesst_stdin(tmp_path, monkeypa
     with pytest.raises(RuntimeError, match="keine Audiodatei"):
         recorder.stop()
     assert geschrieben == [b"stop\n", "geschlossen"]
+
+
+def _fake_process(aufrufe):
+    class FakeProcess:
+        stdin = None
+        returncode = 0
+        pid = 4242
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            aufrufe.append("terminate")
+
+        def send_signal(self, sig):
+            aufrufe.append(("signal", sig))
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            aufrufe.append("kill")
+
+    return FakeProcess()
+
+
+def _stop_aufrufe(tmp_path, monkeypatch, platform):
+    """Stoppt eine einfache ffmpeg-Aufnahme und gibt die Prozessaufrufe zurück."""
+    import koprotokoll.capture as capture
+
+    aufrufe = []
+    monkeypatch.setattr(capture, "_terminate_tree", lambda process: aufrufe.append("tree"))
+    active = capture.ActiveCapture(
+        device="Analogue 1 + 2 (Focusrite USB Audio)", path=tmp_path / "aufnahme.wav",
+        process=_fake_process(aufrufe), channels=2, sample_rate=48_000, started_at=0.0)
+    recorder = capture.HardwareRecorder(tmp_path)
+    recorder._active = active
+    monkeypatch.setattr(capture.sys, "platform", platform)
+    with pytest.raises(RuntimeError, match="keine aufnehmbare Datei"):
+        recorder.stop()
+    return aufrufe
+
+
+def test_windows_stop_beendet_den_prozessbaum_ohne_sigint(tmp_path, monkeypatch):
+    """Windows kennt kein SIGINT für Kindprozesse; der Stopp darf keinen HTTP 500 auslösen."""
+    assert _stop_aufrufe(tmp_path, monkeypatch, "win32") == ["tree"]
+
+
+def test_stop_sendet_ausserhalb_windows_weiter_sigint(tmp_path, monkeypatch):
+    """macOS und Linux beenden ffmpeg weiterhin sauber per SIGINT."""
+    assert _stop_aufrufe(tmp_path, monkeypatch, "linux") == [("signal", signal.SIGINT)]
+
+
+def test_windows_baumabbruch_nutzt_taskkill_und_faellt_auf_terminate_zurueck(monkeypatch):
+    """Chocolatey-Shims starten ffmpeg als Kind; nur taskkill /T beendet den Baum."""
+    import koprotokoll.capture as capture
+
+    befehle, aufrufe = [], []
+
+    def fake_run(command, **kwargs):
+        befehle.append(command)
+        assert kwargs["check"] is False
+
+    monkeypatch.setattr(capture.subprocess, "run", fake_run)
+    capture._terminate_tree(_fake_process(aufrufe))
+    assert befehle == [["taskkill", "/PID", "4242", "/T", "/F"]]
+    assert aufrufe == ["terminate"]

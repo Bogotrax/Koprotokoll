@@ -119,6 +119,33 @@ def _validate_stem_durations(system_path: Path, mic_path: Path, tolerance: float
     return system_duration, mic_duration
 
 
+def _terminate_tree(process: subprocess.Popen) -> None:
+    """Beendet unter Windows den ganzen Prozessbaum.
+
+    Chocolatey- und Store-Shims starten ffmpeg als Kindprozess. ``terminate()``
+    trifft nur den Shim; das Kind hielte die Pipe offen und der Leser-Thread
+    wartete vergeblich auf das Dateiende.
+    """
+    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                   capture_output=True, check=False)
+    if process.poll() is None:
+        process.terminate()
+
+
+def _stop_process(process: subprocess.Popen) -> None:
+    """Beendet ffmpeg oder den Aufnahmehelfer plattformgerecht.
+
+    Windows kann Kindprozessen kein ``SIGINT`` senden (``ValueError: Unsupported
+    signal``) und kennt keine Prozessgruppen-Signale ohne Konsole. Der PCM-Mitschnitt
+    läuft über eine Pipe: Der Prozessbaum wird beendet, der Leser-Thread sieht das
+    Dateiende und schließt die WAV.
+    """
+    if sys.platform == "win32":
+        _terminate_tree(process)
+    else:
+        process.send_signal(signal.SIGINT)
+
+
 def parse_devices(details: str, platform: str | None = None) -> list[dict[str, str]]:
     """Extrahiert Audioquellen aus der ffmpeg-Ausgabe, soweit das Modul sie benennt."""
     source = backend(platform)
@@ -237,7 +264,7 @@ class HardwareRecorder:
             if not active.ready.wait(timeout=60 if is_system_mix else 8) or active.error:
                 self._active = None
                 if process.poll() is None:
-                    process.send_signal(signal.SIGINT)
+                    _stop_process(process)
                 try:
                     process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
@@ -310,6 +337,7 @@ class HardwareRecorder:
                 raise RuntimeError("Es läuft keine Hardwareaufnahme.")
             self._active = None
         if active.process.poll() is None:
+            handled = False
             if active.system_path is not None and sys.platform == "win32":
                 # Der Windows-Helfer wird über eine Stoppzeile beendet; Signale erreichen ihn nicht.
                 try:
@@ -317,10 +345,11 @@ class HardwareRecorder:
                         active.process.stdin.write(b"stop\n")
                         active.process.stdin.flush()
                         active.process.stdin.close()
+                        handled = True
                 except (OSError, ValueError):
                     pass
-            else:
-                active.process.send_signal(signal.SIGINT)
+            if not handled:
+                _stop_process(active.process)
         try:
             active.process.wait(timeout=15)
         except subprocess.TimeoutExpired:
