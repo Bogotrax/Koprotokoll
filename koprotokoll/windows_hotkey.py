@@ -31,13 +31,13 @@ MAXIMUM_HOLD = 0.35  # Sekunden, die ein einzelner Tipp höchstens dauert
 class ShortcutModifier(enum.Enum):
     """Die Doppeltipp-Taste mit linkem und rechtem Windows-Tastencode."""
 
-    ALT = (0xA4, 0xA5)      # VK_LMENU, VK_RMENU
-    CONTROL = (0xA2, 0xA3)  # VK_LCONTROL, VK_RCONTROL
-    SHIFT = (0xA0, 0xA1)    # VK_LSHIFT, VK_RSHIFT
+    ALT = (0xA4, 0xA5, 0x12)      # VK_LMENU, VK_RMENU, VK_MENU
+    CONTROL = (0xA2, 0xA3, 0x11)  # VK_LCONTROL, VK_RCONTROL, VK_CONTROL
+    SHIFT = (0xA0, 0xA1, 0x10)    # VK_LSHIFT, VK_RSHIFT, VK_SHIFT
 
     @property
-    def virtual_keys(self) -> tuple[int, int]:
-        """Links- und Rechts-Tastencode der Taste."""
+    def virtual_keys(self) -> tuple[int, ...]:
+        """Alle Tastencodes der Taste: links, rechts und der allgemeine Code."""
         return self.value
 
     @property

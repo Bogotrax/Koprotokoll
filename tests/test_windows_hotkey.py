@@ -92,9 +92,9 @@ def test_begonnener_tipp_meldet_andere_tasten_bis_zur_ausloesung():
 
 
 def test_tastencodes_und_anzeigenamen():
-    assert ShortcutModifier.ALT.virtual_keys == (0xA4, 0xA5)
-    assert ShortcutModifier.CONTROL.virtual_keys == (0xA2, 0xA3)
-    assert ShortcutModifier.SHIFT.virtual_keys == (0xA0, 0xA1)
+    assert ShortcutModifier.ALT.virtual_keys == (0xA4, 0xA5, 0x12)
+    assert ShortcutModifier.CONTROL.virtual_keys == (0xA2, 0xA3, 0x11)
+    assert ShortcutModifier.SHIFT.virtual_keys == (0xA0, 0xA1, 0x10)
     assert ShortcutModifier.ALT.title == "Alt zweimal"
     assert ShortcutModifier.CONTROL.title == "Strg zweimal"
     assert ShortcutModifier.SHIFT.title == "Umschalt zweimal"
@@ -223,3 +223,26 @@ def test_hintergrundthread_startet_und_stoppt_ohne_ausloesung():
     time.sleep(0.05)
     monitor.stop()
     assert triggered == []
+
+
+def test_monitor_ignoriert_den_allgemeinen_modifiercode(monkeypatch):
+    """Windows meldet Modifikatortasten zusätzlich unter dem allgemeinen Code
+    (VK_MENU 0x12, VK_CONTROL 0x11, VK_SHIFT 0x10). Der allgemeine Code ist
+    dieselbe Taste und darf einen Tipp deshalb nicht unterbrechen."""
+    for modifier, (spezifisch, allgemein) in (
+        (ShortcutModifier.ALT, (0xA4, 0x12)),
+        (ShortcutModifier.CONTROL, (0xA2, 0x11)),
+        (ShortcutModifier.SHIFT, (0xA0, 0x10)),
+    ):
+        pressed: set[int] = set()
+        monkeypatch.setattr(windows_hotkey, "key_pressed", lambda vk: vk in pressed)
+        monitor = ShortcutMonitor()
+        monitor.configure(enabled=True, modifier=modifier)
+        pressed.update({spezifisch, allgemein})
+        assert monitor.sample(now=0.0) is False
+        pressed.clear()
+        assert monitor.sample(now=0.05) is False
+        pressed.update({spezifisch, allgemein})
+        assert monitor.sample(now=0.20) is False
+        pressed.clear()
+        assert monitor.sample(now=0.25) is True
